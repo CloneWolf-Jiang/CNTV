@@ -20,8 +20,7 @@ var _wasmBinaryReady = fetch(new URL('CNTV.wasm', self.location.href))
   });
 var noopFn = function () {};
 var CNTVModule = function () {
-    var _noop = noopFn,
-      currentScriptSrc = typeof document !== 'undefined' && document['currentScript'] ? document['currentScript']['src'] : undefined;
+    var currentScriptSrc = typeof document !== 'undefined' && document['currentScript'] ? document['currentScript']['src'] : undefined;
     return function (moduleOptions) {
       moduleOptions = moduleOptions || {};
       var module = typeof moduleOptions !== 'undefined' ? moduleOptions : {},
@@ -32,8 +31,8 @@ var CNTVModule = function () {
       }
       var argv = [],
         thisProgram = './this.program',
-        quit = function (_0x3a96a3, _0x2e80db) {
-          throw _0x2e80db;
+        quit = function (code, e) {
+          throw e;
         },
         isWindow = ![],
         isWorker = ![],
@@ -44,43 +43,43 @@ var CNTVModule = function () {
       var scriptDirectory = '';
 
       // 定位文件路径：优先使用 module.locateFile，否则拼接 scriptDirectory
-      function locateFile(_0x129729) {
-        if (module['locateFile']) return module['locateFile'](_0x129729, scriptDirectory);
-        return scriptDirectory + _0x129729;
+      function locateFile(fileName) {
+        if (module['locateFile']) return module['locateFile'](fileName, scriptDirectory);
+        return scriptDirectory + fileName;
       }
       var readFile, readFileAsync, readBinary, setWindowTitle;
       if (isNode) {
         scriptDirectory = __dirname + '/';
         var fsModule, pathModule;
-        readFile = function _0x5af7fc(_0x1d9af9, _0x2400a1) {
-          var _0x160f7a;
+        readFile = function readFileSync(filename, returnUint8Array) {
+          var data;
           if (!fsModule) fsModule = require('fs');
           if (!pathModule) pathModule = require('path');
-          return _0x1d9af9 = pathModule['normalize'](_0x1d9af9), _0x160f7a = fsModule['readFileSync'](_0x1d9af9), _0x2400a1 ? _0x160f7a : _0x160f7a['toString']();
-        }, readBinary = function _0x210d0e(_0x25e963) {
-          var _0x2be87b = readFile(_0x25e963, !![]);
-          return !_0x2be87b['buffer'] && (_0x2be87b = new Uint8Array(_0x2be87b)), assert(_0x2be87b['buffer']), _0x2be87b;
-        }, process['argv']['length'] > 0x1 && (thisProgram = process['argv'][0x1]['replace'](/\\/g, '/')), argv = process['argv']['slice'](0x2), process['on']('uncaughtException', function (_0x59d10c) {
-          if (!(_0x59d10c instanceof ExitStatus)) throw _0x59d10c;
-        }), process['on']('unhandledRejection', abort), quit = function (_0x534e24) {
-          process['exit'](_0x534e24);
+          return filename = pathModule['normalize'](filename), data = fsModule['readFileSync'](filename), returnUint8Array ? data : data['toString']();
+        }, readBinary = function readBinarySync(filename) {
+          var content = readFile(filename, !![]);
+          return !content['buffer'] && (content = new Uint8Array(content)), assert(content['buffer']), content;
+        }, process['argv']['length'] > 0x1 && (thisProgram = process['argv'][0x1]['replace'](/\\/g, '/')), argv = process['argv']['slice'](0x2), process['on']('uncaughtException', function (e) {
+          if (!(e instanceof ExitStatus)) throw e;
+        }), process['on']('unhandledRejection', abort), quit = function (code) {
+          process['exit'](code);
         }, module['inspect'] = function () {
           return '[Emscripten 模块对象]';
         };
       } else {
         if (isShell) {
-          typeof read != 'undefined' && (readFile = function _0x19436f(_0x592ec5) {
-            return read(_0x592ec5);
+          typeof read != 'undefined' && (readFile = function readFileShell(filename) {
+            return read(filename);
           });
-          readBinary = function _0x41773d(_0x27bebd) {
-            var _0x31b508;
-            if (typeof readbuffer === 'function') return new Uint8Array(readbuffer(_0x27bebd));
-            return _0x31b508 = read(_0x27bebd, 'binary'), assert(typeof _0x31b508 === 'object'), _0x31b508;
+          readBinary = function readBinaryShell(filename) {
+            var data;
+            if (typeof readbuffer === 'function') return new Uint8Array(readbuffer(filename));
+            return data = read(filename, 'binary'), assert(typeof data === 'object'), data;
           };
           if (typeof scriptArgs != 'undefined') argv = scriptArgs;
           else typeof arguments != 'undefined' && (argv = arguments);
-          typeof quit === 'function' && (quit = function (_0x919921) {
-            quit(_0x919921);
+          typeof quit === 'function' && (quit = function (code) {
+            quit(code);
           });
           if (typeof print !== 'undefined') {
             if (typeof console === 'undefined') console = {};
@@ -90,24 +89,23 @@ var CNTVModule = function () {
           if (isWindow || isWorker) {
             if (isWorker) scriptDirectory = self['location']['href'];
             else document['currentScript'] && (scriptDirectory = document['currentScript']['src']);
-            currentScriptSrc && (scriptDirectory = currentScriptSrc), scriptDirectory['indexOf']('blob:') !== 0x0 ? scriptDirectory = scriptDirectory['substr'](0x0, scriptDirectory['lastIndexOf']('/') + 0x1) : scriptDirectory = '', readFile = function _0x37f3c6(_0x36112d) {
-              var _0x4f8753 = new XMLHttpRequest();
-              return _0x4f8753['open']('GET', _0x36112d, ![]), _0x4f8753['send'](null), _0x4f8753['responseText'];
-            }, isWorker && (readBinary = function _0x4928a9(_0xa661bf) {
-              var _0x1bcdbf = new XMLHttpRequest();
-              return _0x1bcdbf['open']('GET', _0xa661bf, ![]), _0x1bcdbf['responseType'] = 'arraybuffer', _0x1bcdbf['send'](null), new Uint8Array(_0x1bcdbf['response']);
-            }), readFileAsync = function _0x5d2ed2(_0x29b105, _0x15c914, _0x40e73d) {
-              var _0x165a32 = new XMLHttpRequest();
-              _0x165a32['open']('GET', _0x29b105, !![]), _0x165a32['responseType'] = 'arraybuffer', _0x165a32['onload'] = function _0x31fddd() {
-                var _0x49c92f = _0x5344b7;
-                if (_0x165a32['status'] == 0xc8 || _0x165a32['status'] == 0x0 && _0x165a32['response']) {
-                  _0x15c914(_0x165a32['response']);
+            currentScriptSrc && (scriptDirectory = currentScriptSrc), scriptDirectory['indexOf']('blob:') !== 0x0 ? scriptDirectory = scriptDirectory['substr'](0x0, scriptDirectory['lastIndexOf']('/') + 0x1) : scriptDirectory = '', readFile = function readFileXHR(url) {
+              var xhr = new XMLHttpRequest();
+              return xhr['open']('GET', url, ![]), xhr['send'](null), xhr['responseText'];
+            }, isWorker && (readBinary = function readBinaryXHR(url) {
+              var xhr = new XMLHttpRequest();
+              return xhr['open']('GET', url, ![]), xhr['responseType'] = 'arraybuffer', xhr['send'](null), new Uint8Array(xhr['response']);
+            }), readFileAsync = function readFileAsyncXHR(url, onSuccess, onError) {
+              var xhr = new XMLHttpRequest();
+              xhr['open']('GET', url, !![]), xhr['responseType'] = 'arraybuffer', xhr['onload'] = function onXHRLoad() {
+                if (xhr['status'] == 0xc8 || xhr['status'] == 0x0 && xhr['response']) {
+                  onSuccess(xhr['response']);
                   return;
                 }
-                _0x40e73d();
-              }, _0x165a32['onerror'] = _0x40e73d, _0x165a32['send'](null);
-            }, setWindowTitle = function (_0x1ad244) {
-              document['title'] = _0x1ad244;
+                onError();
+              }, xhr['onerror'] = onError, xhr['send'](null);
+            }, setWindowTitle = function (title) {
+              document['title'] = title;
             };
           } else {}
         }
@@ -124,14 +122,14 @@ var CNTVModule = function () {
       var ALIGNMENT = 0x10;
 
       // 在动态内存区域分配空间
-      function dynamicAlloc(_0x4a147d) {
-        var _0x5ec9b3 = HEAP32[DYNAMICTOP_PTR >> 0x2],
-          _0x122b80 = _0x5ec9b3 + _0x4a147d + 0xf & -0x10;
-        return _0x122b80 > getHeapSize() && abort(), HEAP32[DYNAMICTOP_PTR >> 0x2] = _0x122b80, _0x5ec9b3;
+      function dynamicAlloc(size) {
+        var ret = HEAP32[DYNAMICTOP_PTR >> 0x2],
+          newDynamicTop = ret + size + 0xf & -0x10;
+        return newDynamicTop > getHeapSize() && abort(), HEAP32[DYNAMICTOP_PTR >> 0x2] = newDynamicTop, ret;
       }
 
-      function getNativeTypeSize(_0x4ea24b) {
-        switch (_0x4ea24b) {
+      function getNativeTypeSize(typeName) {
+        switch (typeName) {
         case 'i1':
         case 'i8':
           return 0x1;
@@ -146,24 +144,24 @@ var CNTVModule = function () {
         case 'double':
           return 0x8;
         default: {
-          if (_0x4ea24b[_0x4ea24b['length'] - 0x1] === '*') return 0x4;
+          if (typeName[typeName['length'] - 0x1] === '*') return 0x4;
           else {
-            if (_0x4ea24b[0x0] === 'i') {
-              var _0x181dfd = parseInt(_0x4ea24b['substr'](0x1));
-              return assert(_0x181dfd % 0x8 === 0x0, 'getNativeTypeSize 无效的位数 ' + _0x181dfd + ', type ' + _0x4ea24b), _0x181dfd / 0x8;
+            if (typeName[0x0] === 'i') {
+              var bits = parseInt(typeName['substr'](0x1));
+              return assert(bits % 0x8 === 0x0, 'getNativeTypeSize 无效的位数 ' + bits + ', 类型 ' + typeName), bits / 0x8;
             } else return 0x0;
           }
         }
         }
       }
 
-      function warnOnce(_0x239ed4) {
+      function warnOnce(text) {
         if (!warnOnce['shown']) warnOnce['shown'] = {};
-        !warnOnce['shown'][_0x239ed4] && (warnOnce['shown'][_0x239ed4] = 0x1, printError(_0x239ed4));
+        !warnOnce['shown'][text] && (warnOnce['shown'][text] = 0x1, printError(text));
       }
       var asm2wasmImports = {
-          'f64-rem': function (_0x5f1019, _0x427d14) {
-            return _0x5f1019 % _0x427d14;
+          'f64-rem': function (x, y) {
+            return x % y;
           },
           'debugger': function () {}
         },
@@ -171,49 +169,49 @@ var CNTVModule = function () {
         FUNCTION_TABLE = new Array(0xe);
 
       // 创建动态函数调用包装器
-      function makeDynCall(_0x2abfa7, _0x2d534e) {
-        var _0x2c2f75 = [0x1, 0x0, 0x1, 0x60],
-          _0x2d3486 = _0x2d534e['slice'](0x0, 0x1),
-          _0x57e4e4 = _0x2d534e['slice'](0x1),
-          _0xeb2ba7 = {
+      function makeDynCall(func, sig) {
+        var typeSection = [0x1, 0x0, 0x1, 0x60],
+          retType = sig['slice'](0x0, 0x1),
+          paramTypes = sig['slice'](0x1),
+          typeMap = {
             'i': 0x7f,
             'j': 0x7e,
             'f': 0x7d,
             'd': 0x7c
           };
-        _0x2c2f75['push'](_0x57e4e4['length']);
-        for (var _0x130d98 = 0x0; _0x130d98 < _0x57e4e4['length']; ++_0x130d98) {
-          _0x2c2f75['push'](_0xeb2ba7[_0x57e4e4[_0x130d98]]);
+        typeSection['push'](paramTypes['length']);
+        for (var i = 0x0; i < paramTypes['length']; ++i) {
+          typeSection['push'](typeMap[paramTypes[i]]);
         }
-        _0x2d3486 == 'v' ? _0x2c2f75['push'](0x0) : _0x2c2f75 = _0x2c2f75['concat']([0x1, _0xeb2ba7[_0x2d3486]]);
-        _0x2c2f75[0x1] = _0x2c2f75['length'] - 0x2;
-        var _0x4b9675 = new Uint8Array([0x0, 0x61, 0x73, 0x6d, 0x1, 0x0, 0x0, 0x0]['concat'](_0x2c2f75, [0x2, 0x7, 0x1, 0x1, 0x65, 0x1, 0x66, 0x0, 0x0, 0x7, 0x5, 0x1, 0x1, 0x66, 0x0, 0x0])),
-          _0xc43240 = new WebAssembly['Module'](_0x4b9675),
-          _0x21b4e3 = new WebAssembly[('Instance')](_0xc43240, {
+        retType == 'v' ? typeSection['push'](0x0) : typeSection = typeSection['concat']([0x1, typeMap[retType]]);
+        typeSection[0x1] = typeSection['length'] - 0x2;
+        var bytes = new Uint8Array([0x0, 0x61, 0x73, 0x6d, 0x1, 0x0, 0x0, 0x0]['concat'](typeSection, [0x2, 0x7, 0x1, 0x1, 0x65, 0x1, 0x66, 0x0, 0x0, 0x7, 0x5, 0x1, 0x1, 0x66, 0x0, 0x0])),
+          wasmMod = new WebAssembly['Module'](bytes),
+          wasmInst = new WebAssembly[('Instance')](wasmMod, {
             'e': {
-              'f': _0x2abfa7
+              'f': func
             }
           }),
-          _0x1fcf11 = _0x21b4e3['exports']['f'];
-        return _0x1fcf11;
+          wrappedFunc = wasmInst['exports']['f'];
+        return wrappedFunc;
       }
 
       // 向函数表添加函数并返回其索引
-      function addFunction(_0x48677a, _0x4e48ce) {
-        var _0x449238 = 0x0;
-        for (var _0x349b50 = _0x449238; _0x349b50 < _0x449238 + 0xe; _0x349b50++) {
-          if (!FUNCTION_TABLE[_0x349b50]) return FUNCTION_TABLE[_0x349b50] = _0x48677a, RESERVED_FUNCTION_POINTERS_START + _0x349b50;
+      function addFunction(funcToAdd, funcSig) {
+        var startIdx = 0x0;
+        for (var i = startIdx; i < startIdx + 0xe; i++) {
+          if (!FUNCTION_TABLE[i]) return FUNCTION_TABLE[i] = funcToAdd, RESERVED_FUNCTION_POINTERS_START + i;
         }
         throw '已用尽所有保留函数指针，请增大 RESERVED_FUNCTION_POINTERS 的值。';
       }
       var resolvedFunctions = {};
 
-      function dynCall(_0x3cc89e, _0x45dc1e, _0xd2789c) {
-        return _0xd2789c && _0xd2789c['length'] ? module['dynCall_' + _0x3cc89e]['apply'](null, [_0x45dc1e]['concat'](_0xd2789c)) : module['dynCall_' + _0x3cc89e]['call'](null, _0x45dc1e);
+      function dynCall(sig, funcPtr, callArgs) {
+        return callArgs && callArgs['length'] ? module['dynCall_' + sig]['apply'](null, [funcPtr]['concat'](callArgs)) : module['dynCall_' + sig]['call'](null, funcPtr);
       }
       var tempRet0 = 0x0,
-        setTempRet0 = function (_0x5c84ed) {
-          tempRet0 = _0x5c84ed;
+        setTempRet0 = function (value) {
+          tempRet0 = value;
         },
         getTempRet0 = function () {
           return tempRet0;
@@ -222,192 +220,192 @@ var CNTVModule = function () {
       if (module['wasmBinary']) wasmBinary = module['wasmBinary'];
       typeof WebAssembly !== 'object' && printError('未检测到原生 WebAssembly 支持');
 
-      function setValue(_0x9711f3, _0x813c9f, _0x1a3522, _0x4794ba) {
-        _0x1a3522 = _0x1a3522 || 'i8';
-        if (_0x1a3522['charAt'](_0x1a3522['length'] - 0x1) === '*') _0x1a3522 = 'i32';
-        switch (_0x1a3522) {
+      function setValue(ptr, value, type, noSafe) {
+        type = type || 'i8';
+        if (type['charAt'](type['length'] - 0x1) === '*') type = 'i32';
+        switch (type) {
         case 'i1':
-          HEAP8[_0x9711f3 >> 0x0] = _0x813c9f;
+          HEAP8[ptr >> 0x0] = value;
           break;
         case 'i8':
-          HEAP8[_0x9711f3 >> 0x0] = _0x813c9f;
+          HEAP8[ptr >> 0x0] = value;
           break;
         case 'i16':
-          HEAP16[_0x9711f3 >> 0x1] = _0x813c9f;
+          HEAP16[ptr >> 0x1] = value;
           break;
         case 'i32':
-          HEAP32[_0x9711f3 >> 0x2] = _0x813c9f;
+          HEAP32[ptr >> 0x2] = value;
           break;
         case 'i64':
-          tempI64 = [_0x813c9f >>> 0x0, (_0x2f9712 = _0x813c9f, +Math_abs(_0x2f9712) >= 0x1 ? _0x2f9712 > 0x0 ? (Math_min(+Math_floor(_0x2f9712 / 0x100000000), 0xffffffff) | 0x0) >>> 0x0 : ~~+Math_ceil((_0x2f9712 - +(~~_0x2f9712 >>> 0x0)) / 0x100000000) >>> 0x0 : 0x0)], HEAP32[_0x9711f3 >> 0x2] = tempI64[0x0], HEAP32[_0x9711f3 + 0x4 >> 0x2] = tempI64[0x1];
+          tempI64 = [value >>> 0x0, (tempDouble = value, +Math_abs(tempDouble) >= 0x1 ? tempDouble > 0x0 ? (Math_min(+Math_floor(tempDouble / 0x100000000), 0xffffffff) | 0x0) >>> 0x0 : ~~+Math_ceil((tempDouble - +(~~tempDouble >>> 0x0)) / 0x100000000) >>> 0x0 : 0x0)], HEAP32[ptr >> 0x2] = tempI64[0x0], HEAP32[ptr + 0x4 >> 0x2] = tempI64[0x1];
           break;
         case 'float':
-          HEAPF32[_0x9711f3 >> 0x2] = _0x813c9f;
+          HEAPF32[ptr >> 0x2] = value;
           break;
         case 'double':
-          HEAPF64[_0x9711f3 >> 0x3] = _0x813c9f;
+          HEAPF64[ptr >> 0x3] = value;
           break;
         default:
-          abort('invalid\x20type\x20for\x20setValue:\x20' + _0x1a3522);
+          abort('setValue 类型无效：' + type);
         }
       }
       var wasmMemory, wasmTable, calledAbort = ![],
         exitCode = 0x0;
 
       // 断言工具：条件为假时抛出错误
-      function assert(_0x40f1a2, _0x2ca63a) {
-        !_0x40f1a2 && abort('断言失败：' + _0x2ca63a);
+      function assert(condition, message) {
+        !condition && abort('断言失败：' + message);
       }
 
-      function getCFunc(_0x2b7bc3) {
-        var _0x3899b0 = module['_' + _0x2b7bc3];
-        return assert(_0x3899b0, 'Cannot\x20call\x20unknown\x20function\x20' + _0x2b7bc3 + ', make sure it is exported'), _0x3899b0;
+      function getCFunc(funcName) {
+        var cfunc = module['_' + funcName];
+        return assert(cfunc, '无法调用未知函数 ' + funcName + ', make sure it is exported'), cfunc;
       }
 
-      function ccall(_0x59dcf6, _0x3d39e3, _0x475a79, _0x148a0a, _0x1dd0f4) {
-        var _0x5da9b5 = {
-          'string': function (_0x28a5b9) {
-            var _0x1942e7 = 0x0;
-            if (_0x28a5b9 !== null && _0x28a5b9 !== undefined && _0x28a5b9 !== 0x0) {
-              var _0x25999d = (_0x28a5b9['length'] << 0x2) + 0x1;
-              _0x1942e7 = stackAlloc(_0x25999d), stringToUTF8(_0x28a5b9, _0x1942e7, _0x25999d);
+      function ccall(ident, returnType, argTypes, args, opts) {
+        var converters = {
+          'string': function (value) {
+            var ptr = 0x0;
+            if (value !== null && value !== undefined && value !== 0x0) {
+              var length = (value['length'] << 0x2) + 0x1;
+              ptr = stackAlloc(length), stringToUTF8(value, ptr, length);
             }
-            return _0x1942e7;
+            return ptr;
           },
-          'array': function (_0xdd9b99) {
-            var _0xca6a4b = stackAlloc(_0xdd9b99['length']);
-            return writeArrayToMemory(_0xdd9b99, _0xca6a4b), _0xca6a4b;
+          'array': function (arr) {
+            var ptr = stackAlloc(arr['length']);
+            return writeArrayToMemory(arr, ptr), ptr;
           }
         };
 
-        function _0x4a7d8c(_0x1c7d52) {
-          if (_0x3d39e3 === 'string') return UTF8ToString(_0x1c7d52);
-          if (_0x3d39e3 === 'boolean') return Boolean(_0x1c7d52);
-          return _0x1c7d52;
+        function convertReturnValue(ret) {
+          if (returnType === 'string') return UTF8ToString(ret);
+          if (returnType === 'boolean') return Boolean(ret);
+          return ret;
         }
-        var _0x3bccbe = getCFunc(_0x59dcf6),
-          _0x12d6e9 = [],
-          _0x1422e3 = 0x0;
-        if (_0x148a0a)
-          for (var _0x19f624 = 0x0; _0x19f624 < _0x148a0a['length']; _0x19f624++) {
-            var _0x12f5bd = _0x5da9b5[_0x475a79[_0x19f624]];
-            if (_0x12f5bd) {
-              if (_0x1422e3 === 0x0) _0x1422e3 = stackSave();
-              _0x12d6e9[_0x19f624] = _0x12f5bd(_0x148a0a[_0x19f624]);
-            } else _0x12d6e9[_0x19f624] = _0x148a0a[_0x19f624];
+        var func = getCFunc(ident),
+          convertedArgs = [],
+          stackPtr = 0x0;
+        if (args)
+          for (var i = 0x0; i < args['length']; i++) {
+            var converter = converters[argTypes[i]];
+            if (converter) {
+              if (stackPtr === 0x0) stackPtr = stackSave();
+              convertedArgs[i] = converter(args[i]);
+            } else convertedArgs[i] = args[i];
           }
-        var _0x37b5b2 = _0x3bccbe['apply'](null, _0x12d6e9);
-        _0x37b5b2 = _0x4a7d8c(_0x37b5b2);
-        if (_0x1422e3 !== 0x0) stackRestore(_0x1422e3);
-        return _0x37b5b2;
+        var ret = func['apply'](null, convertedArgs);
+        ret = convertReturnValue(ret);
+        if (stackPtr !== 0x0) stackRestore(stackPtr);
+        return ret;
       }
       var UTF8_DECODER_THRESHOLD = 0x3,
         UTF8Decoder = typeof TextDecoder !== 'undefined' ? new TextDecoder('utf8') : undefined;
 
       // 将 Uint8Array 转换为 UTF-8 字符串
-      function UTF8ArrayToString(_0x22d30f, _0xd2b46e, _0x1382bd) {
-        var _0x346b2a = _0xd2b46e + _0x1382bd,
-          _0x31dca8 = _0xd2b46e;
-        while (_0x22d30f[_0x31dca8] && !(_0x31dca8 >= _0x346b2a)) ++_0x31dca8;
-        if (_0x31dca8 - _0xd2b46e > 0x10 && _0x22d30f['subarray'] && UTF8Decoder) return UTF8Decoder['decode'](_0x22d30f['subarray'](_0xd2b46e, _0x31dca8));
+      function UTF8ArrayToString(heap, idx, maxBytesToRead) {
+        var endIdx = idx + maxBytesToRead,
+          endIdx = idx;
+        while (heap[endIdx] && !(endIdx >= endIdx)) ++endIdx;
+        if (endIdx - idx > 0x10 && heap['subarray'] && UTF8Decoder) return UTF8Decoder['decode'](heap['subarray'](idx, endIdx));
         else {
-          var _0x18f0f4 = '';
-          while (_0xd2b46e < _0x31dca8) {
-            var _0x5a82af = _0x22d30f[_0xd2b46e++];
-            if (!(_0x5a82af & 0x80)) {
-              _0x18f0f4 += String['fromCharCode'](_0x5a82af);
+          var result = '';
+          while (idx < endIdx) {
+            var byte = heap[idx++];
+            if (!(byte & 0x80)) {
+              result += String['fromCharCode'](byte);
               continue;
             }
-            var _0x27d2b6 = _0x22d30f[_0xd2b46e++] & 0x3f;
-            if ((_0x5a82af & 0xe0) == 0xc0) {
-              _0x18f0f4 += String['fromCharCode']((_0x5a82af & 0x1f) << 0x6 | _0x27d2b6);
+            var secondByte = heap[idx++] & 0x3f;
+            if ((byte & 0xe0) == 0xc0) {
+              result += String['fromCharCode']((byte & 0x1f) << 0x6 | secondByte);
               continue;
             }
-            var _0x4769dd = _0x22d30f[_0xd2b46e++] & 0x3f;
-            (_0x5a82af & 0xf0) == 0xe0 ? _0x5a82af = (_0x5a82af & 0xf) << 0xc | _0x27d2b6 << 0x6 | _0x4769dd : _0x5a82af = (_0x5a82af & 0x7) << 0x12 | _0x27d2b6 << 0xc | _0x4769dd << 0x6 | _0x22d30f[_0xd2b46e++] & 0x3f;
-            if (_0x5a82af < 0x10000) _0x18f0f4 += String['fromCharCode'](_0x5a82af);
+            var thirdByte = heap[idx++] & 0x3f;
+            (byte & 0xf0) == 0xe0 ? byte = (byte & 0xf) << 0xc | secondByte << 0x6 | thirdByte : byte = (byte & 0x7) << 0x12 | secondByte << 0xc | thirdByte << 0x6 | heap[idx++] & 0x3f;
+            if (byte < 0x10000) result += String['fromCharCode'](byte);
             else {
-              var _0xc4b60c = _0x5a82af - 0x10000;
-              _0x18f0f4 += String['fromCharCode'](0xd800 | _0xc4b60c >> 0xa, 0xdc00 | _0xc4b60c & 0x3ff);
+              var codePoint = byte - 0x10000;
+              result += String['fromCharCode'](0xd800 | codePoint >> 0xa, 0xdc00 | codePoint & 0x3ff);
             }
           }
         }
-        return _0x18f0f4;
+        return result;
       }
 
       // 将 WASM 内存中的 UTF-8 C 字符串转换为 JS 字符串
-      function UTF8ToString(_0x1d64c0, _0x2b4778) {
-        return _0x1d64c0 ? UTF8ArrayToString(HEAPU8, _0x1d64c0, _0x2b4778) : '';
+      function UTF8ToString(ptr, maxBytesToRead) {
+        return ptr ? UTF8ArrayToString(HEAPU8, ptr, maxBytesToRead) : '';
       }
 
       // 将 JS 字符串编码为 UTF-8 并写入字节数组
-      function stringToUTF8Array(_0xe54df2, _0x5404c7, _0x31281e, _0xdccb90) {
-        if (!(_0xdccb90 > 0x0)) return 0x0;
-        var _0x584cc7 = _0x31281e,
-          _0xc55b17 = _0x31281e + _0xdccb90 - 0x1;
-        for (var _0xac2339 = 0x0; _0xac2339 < _0xe54df2['length']; ++_0xac2339) {
-          var _0x2d15b5 = _0xe54df2['charCodeAt'](_0xac2339);
-          if (_0x2d15b5 >= 0xd800 && _0x2d15b5 <= 0xdfff) {
-            var _0x52c354 = _0xe54df2['charCodeAt'](++_0xac2339);
-            _0x2d15b5 = 0x10000 + ((_0x2d15b5 & 0x3ff) << 0xa) | _0x52c354 & 0x3ff;
+      function stringToUTF8Array(str, outU8Array, outIdx, maxBytesToWrite) {
+        if (!(maxBytesToWrite > 0x0)) return 0x0;
+        var startOutIdx = outIdx,
+          endOutIdx = outIdx + maxBytesToWrite - 0x1;
+        for (var i = 0x0; i < str['length']; ++i) {
+          var charCode = str['charCodeAt'](i);
+          if (charCode >= 0xd800 && charCode <= 0xdfff) {
+            var nextCharCode = str['charCodeAt'](++i);
+            charCode = 0x10000 + ((charCode & 0x3ff) << 0xa) | nextCharCode & 0x3ff;
           }
-          if (_0x2d15b5 <= 0x7f) {
-            if (_0x31281e >= _0xc55b17) break;
-            _0x5404c7[_0x31281e++] = _0x2d15b5;
+          if (charCode <= 0x7f) {
+            if (outIdx >= endOutIdx) break;
+            outU8Array[outIdx++] = charCode;
           } else {
-            if (_0x2d15b5 <= 0x7ff) {
-              if (_0x31281e + 0x1 >= _0xc55b17) break;
-              _0x5404c7[_0x31281e++] = 0xc0 | _0x2d15b5 >> 0x6, _0x5404c7[_0x31281e++] = 0x80 | _0x2d15b5 & 0x3f;
+            if (charCode <= 0x7ff) {
+              if (outIdx + 0x1 >= endOutIdx) break;
+              outU8Array[outIdx++] = 0xc0 | charCode >> 0x6, outU8Array[outIdx++] = 0x80 | charCode & 0x3f;
             } else {
-              if (_0x2d15b5 <= 0xffff) {
-                if (_0x31281e + 0x2 >= _0xc55b17) break;
-                _0x5404c7[_0x31281e++] = 0xe0 | _0x2d15b5 >> 0xc, _0x5404c7[_0x31281e++] = 0x80 | _0x2d15b5 >> 0x6 & 0x3f, _0x5404c7[_0x31281e++] = 0x80 | _0x2d15b5 & 0x3f;
+              if (charCode <= 0xffff) {
+                if (outIdx + 0x2 >= endOutIdx) break;
+                outU8Array[outIdx++] = 0xe0 | charCode >> 0xc, outU8Array[outIdx++] = 0x80 | charCode >> 0x6 & 0x3f, outU8Array[outIdx++] = 0x80 | charCode & 0x3f;
               } else {
-                if (_0x31281e + 0x3 >= _0xc55b17) break;
-                _0x5404c7[_0x31281e++] = 0xf0 | _0x2d15b5 >> 0x12, _0x5404c7[_0x31281e++] = 0x80 | _0x2d15b5 >> 0xc & 0x3f, _0x5404c7[_0x31281e++] = 0x80 | _0x2d15b5 >> 0x6 & 0x3f, _0x5404c7[_0x31281e++] = 0x80 | _0x2d15b5 & 0x3f;
+                if (outIdx + 0x3 >= endOutIdx) break;
+                outU8Array[outIdx++] = 0xf0 | charCode >> 0x12, outU8Array[outIdx++] = 0x80 | charCode >> 0xc & 0x3f, outU8Array[outIdx++] = 0x80 | charCode >> 0x6 & 0x3f, outU8Array[outIdx++] = 0x80 | charCode & 0x3f;
               }
             }
           }
         }
-        return _0x5404c7[_0x31281e] = 0x0, _0x31281e - _0x584cc7;
+        return outU8Array[outIdx] = 0x0, outIdx - startOutIdx;
       }
 
-      function stringToUTF8(_0x3f04ff, _0x139cee, _0x48706e) {
-        return stringToUTF8Array(_0x3f04ff, HEAPU8, _0x139cee, _0x48706e);
+      function stringToUTF8(str, outPtr, maxBytesToWrite) {
+        return stringToUTF8Array(str, HEAPU8, outPtr, maxBytesToWrite);
       }
 
-      function lengthBytesUTF8(_0x22a7c7) {
-        var _0x2aec48 = 0x0;
-        for (var _0x1e9db5 = 0x0; _0x1e9db5 < _0x22a7c7['length']; ++_0x1e9db5) {
-          var _0x1906a8 = _0x22a7c7['charCodeAt'](_0x1e9db5);
-          if (_0x1906a8 >= 0xd800 && _0x1906a8 <= 0xdfff) _0x1906a8 = 0x10000 + ((_0x1906a8 & 0x3ff) << 0xa) | _0x22a7c7['charCodeAt'](++_0x1e9db5) & 0x3ff;
-          if (_0x1906a8 <= 0x7f) ++_0x2aec48;
+      function lengthBytesUTF8(str) {
+        var len = 0x0;
+        for (var i = 0x0; i < str['length']; ++i) {
+          var charCode = str['charCodeAt'](i);
+          if (charCode >= 0xd800 && charCode <= 0xdfff) charCode = 0x10000 + ((charCode & 0x3ff) << 0xa) | str['charCodeAt'](++i) & 0x3ff;
+          if (charCode <= 0x7f) ++len;
           else {
-            if (_0x1906a8 <= 0x7ff) _0x2aec48 += 0x2;
+            if (charCode <= 0x7ff) len += 0x2;
             else {
-              if (_0x1906a8 <= 0xffff) _0x2aec48 += 0x3;
-              else _0x2aec48 += 0x4;
+              if (charCode <= 0xffff) len += 0x3;
+              else len += 0x4;
             }
           }
         }
-        return _0x2aec48;
+        return len;
       }
       var UTF16Decoder = typeof TextDecoder !== 'undefined' ? new TextDecoder('utf-16le') : undefined;
 
-      function writeArrayToMemory(_0x3a94c7, _0x21d71d) {
-        HEAP8['set'](_0x3a94c7, _0x21d71d);
+      function writeArrayToMemory(array, buffer) {
+        HEAP8['set'](array, buffer);
       }
 
-      function writeAsciiToMemory(_0x24d2ef, _0x34121b, _0x22250b) {
-        for (var _0x327697 = 0x0; _0x327697 < _0x24d2ef['length']; ++_0x327697) {
-          HEAP8[_0x34121b++ >> 0x0] = _0x24d2ef['charCodeAt'](_0x327697);
+      function writeAsciiToMemory(str, buffer, dontAddNull) {
+        for (var i = 0x0; i < str['length']; ++i) {
+          HEAP8[buffer++ >> 0x0] = str['charCodeAt'](i);
         }
-        if (!_0x22250b) HEAP8[_0x34121b >> 0x0] = 0x0;
+        if (!dontAddNull) HEAP8[buffer >> 0x0] = 0x0;
       }
       var PAGE_SIZE = 0x10000;
 
-      function alignUp(_0x5510c0, _0x286fe1) {
-        return _0x5510c0 % _0x286fe1 > 0x0 && (_0x5510c0 += _0x286fe1 - _0x5510c0 % _0x286fe1), _0x5510c0;
+      function alignUp(x, multiple) {
+        return x % multiple > 0x0 && (x += multiple - x % multiple), x;
       }
       var wasmBuffer, HEAP8, HEAPU8, HEAP16, HEAPU16, HEAP32, HEAPU32, HEAPF32, HEAPF64;
 
@@ -426,15 +424,15 @@ var CNTVModule = function () {
       TOTAL_MEMORY = wasmBuffer['byteLength'], updateHeapViews(), HEAP32[DYNAMICTOP_PTR >> 0x2] = DYNAMIC_BASE;
 
       // 依次执行运行时回调队列中的所有函数
-      function callRuntimeCallbacks(_0x11951f) {
-        while (_0x11951f['length'] > 0x0) {
-          var _0x49d678 = _0x11951f['shift']();
-          if (typeof _0x49d678 == 'function') {
-            _0x49d678();
+      function callRuntimeCallbacks(callbacks) {
+        while (callbacks['length'] > 0x0) {
+          var callback = callbacks['shift']();
+          if (typeof callback == 'function') {
+            callback();
             continue;
           }
-          var _0x52e09c = _0x49d678['func'];
-          typeof _0x52e09c === 'number' ? _0x49d678['arg'] === undefined ? module['dynCall_v'](_0x52e09c) : module['dynCall_vi'](_0x52e09c, _0x49d678['arg']) : _0x52e09c(_0x49d678['arg'] === undefined ? null : _0x49d678['arg']);
+          var cbFunc = callback['func'];
+          typeof cbFunc === 'number' ? callback['arg'] === undefined ? module['dynCall_v'](cbFunc) : module['dynCall_vi'](cbFunc, callback['arg']) : cbFunc(callback['arg'] === undefined ? null : callback['arg']);
         }
       }
       var __ATPRERUN__ = [],
@@ -476,12 +474,12 @@ var CNTVModule = function () {
         callRuntimeCallbacks(__ATPOSTRUN__);
       }
 
-      function addOnPreRun(_0xb7465f) {
-        __ATPRERUN__['unshift'](_0xb7465f);
+      function addOnPreRun(fn) {
+        __ATPRERUN__['unshift'](fn);
       }
 
-      function addOnPostRun(_0x4e407b) {
-        __ATPOSTRUN__['unshift'](_0x4e407b);
+      function addOnPostRun(fn) {
+        __ATPOSTRUN__['unshift'](fn);
       }
       var Math_abs = Math['abs'],
         Math_ceil = Math['ceil'],
@@ -492,27 +490,27 @@ var CNTVModule = function () {
         dependenciesFulfilled = null;
 
       // 增加运行依赖计数，防止在依赖加载完成前启动
-      function addRunDependency(_0x3c33e1) {
+      function addRunDependency(id) {
         runDependencies++, module['monitorRunDependencies'] && module['monitorRunDependencies'](runDependencies);
       }
 
       // 减少运行依赖计数，计数归零后触发启动
-      function removeRunDependency(_0x27f158) {
+      function removeRunDependency(id) {
         runDependencies--;
         module['monitorRunDependencies'] && module['monitorRunDependencies'](runDependencies);
         if (runDependencies == 0x0) {
           runDependencyWatcher !== null && (clearInterval(runDependencyWatcher), runDependencyWatcher = null);
           if (dependenciesFulfilled) {
-            var _0x156024 = dependenciesFulfilled;
-            dependenciesFulfilled = null, _0x156024();
+            var fn = dependenciesFulfilled;
+            dependenciesFulfilled = null, fn();
           }
         }
       }
       module['preloadedImages'] = {}, module['preloadedAudios'] = {};
       var DATA_URI_PREFIX = 'data:application/octet-stream;base64,';
 
-      function isDataURI(_0x34f53) {
-        return String['prototype']['startsWith'] ? _0x34f53['startsWith'](DATA_URI_PREFIX) : _0x34f53['indexOf'](DATA_URI_PREFIX) === 0x0;
+      function isDataURI(filename) {
+        return String['prototype']['startsWith'] ? filename['startsWith'](DATA_URI_PREFIX) : filename['indexOf'](DATA_URI_PREFIX) === 0x0;
       }
       if (wb instanceof ArrayBuffer) {
         wasmBinary = wb;
@@ -525,8 +523,8 @@ var CNTVModule = function () {
           if (wasmBinary) return new Uint8Array(wasmBinary);
           if (readBinary) return readBinary(wasmBinaryFile);
           else throw 'WASM 的异步和同步获取均失败';
-        } catch (_0x4a4762) {
-          abort(_0x4a4762);
+        } catch (e) {
+          abort(e);
         }
       }
 
@@ -534,22 +532,21 @@ var CNTVModule = function () {
       function getBinaryPromise() {
         if (!wasmBinary && typeof fetch === 'function') return fetch(wasmBinaryFile, {
           'credentials': 'same-origin'
-        })['then'](function (_0x1eb6a7) {
-          var _0x5dbbf1 = _0xb12534;
-          if (!_0x1eb6a7['ok']) throw '加载 WASM 二进制文件失败：' + wasmBinaryFile + '\x27';
-          return _0x1eb6a7['arrayBuffer']();
+        })['then'](function (response) {
+          if (!response['ok']) throw '加载 WASM 二进制文件失败：' + wasmBinaryFile + '\x27';
+          return response['arrayBuffer']();
         })['catch'](function () {
           return getBinary();
         });
-        return new Promise(function (_0x48a039, _0x52d33a) {
-          _0x48a039(getBinary());
+        return new Promise(function (resolve, reject) {
+          resolve(getBinary());
         });
       }
 
       // 创建并初始化 WASM 实例
-      function createWasm(_0x5945cb) {
-        var _0x44feaa = {
-          'env': _0x5945cb,
+      function createWasm(env) {
+        var asmLibraryArg = {
+          'env': env,
           'global': {
             'NaN': NaN,
             'Infinity': Infinity
@@ -558,267 +555,261 @@ var CNTVModule = function () {
           'asm2wasm': asm2wasmImports
         };
 
-        function _0x3f28f3(_0x4b266f, _0x496503) {
-          var _0x374461 = _0x4b266f['exports'];
-          module['asm'] = _0x374461, removeRunDependency('wasm-instantiate');
+        function receiveInstance(output, imports) {
+          var exports = output['exports'];
+          module['asm'] = exports, removeRunDependency('wasm-instantiate');
         }
         addRunDependency('wasm-instantiate');
 
-        function _0x37b1c3(_0x1d6272) {
-          _0x3f28f3(_0x1d6272['instance']);
+        function receiveInstantiationResult(result) {
+          receiveInstance(result['instance']);
         }
 
-        function _0x4be897(_0x531108) {
-          var _0x180bb0 = _0x9ad89f;
-          return getBinaryPromise()['then'](function (_0x6dd834) {
-            var _0x75c75c = _0x180bb0;
-            return WebAssembly['instantiate'](_0x6dd834, _0x44feaa);
-          })['then'](_0x531108, function (_0x3b107d) {
-            var _0x5f499f = _0x180bb0;
-            printError('异步准备 WASM 失败：' + _0x3b107d), abort(_0x3b107d);
+        function receiveInstantiatedSource(callback) {
+          return getBinaryPromise()['then'](function (binary) {
+            return WebAssembly['instantiate'](binary, asmLibraryArg);
+          })['then'](callback, function (err) {
+            printError('异步准备 WASM 失败：' + err), abort(err);
           });
         }
 
-        function _0xff2caf() {
-          var _0x204db7 = _0x9ad89f;
+        function instantiateAsync() {
           if (!wasmBinary && typeof WebAssembly['instantiateStreaming'] === 'function' && !isDataURI(wasmBinaryFile) && typeof fetch === 'function') fetch(wasmBinaryFile, {
             'credentials': 'same-origin'
-          })['then'](function (_0x160acb) {
-            var _0x501653 = _0x204db7,
-              _0x16962e = WebAssembly['instantiateStreaming'](_0x160acb, _0x44feaa);
-            return _0x16962e['then'](_0x37b1c3, function (_0x34a2e1) {
-              var _0x5e91f0 = _0x501653;
-              printError('wasm\x20streaming\x20compile\x20failed:\x20' + _0x34a2e1), printError('回退到 ArrayBuffer 实例化方式'), _0x4be897(_0x37b1c3);
+          })['then'](function (response) {
+            streamResult = WebAssembly['instantiateStreaming'](response, asmLibraryArg);
+            return streamResult['then'](receiveInstantiationResult, function (err) {
+              printError('WASM 流式编译失败：' + err), printError('回退到 ArrayBuffer 实例化方式'), receiveInstantiatedSource(receiveInstantiationResult);
             });
           });
-          else return _0x4be897(_0x37b1c3);
+          else return receiveInstantiatedSource(receiveInstantiationResult);
         }
         if (module['instantiateWasm']) try {
-          var _0x517361 = module['instantiateWasm'](_0x44feaa, _0x3f28f3);
-          return _0x517361;
-        } catch (_0x550693) {
-          return printError('Module.instantiateWasm 回调失败，错误：' + _0x550693), ![];
+          var customWasm = module['instantiateWasm'](asmLibraryArg, receiveInstance);
+          return customWasm;
+        } catch (e) {
+          return printError('Module.instantiateWasm 回调失败，错误：' + e), ![];
         }
-        return _0xff2caf(), {};
+        return instantiateAsync(), {};
       }
-      module['asm'] = function (_0x13acf7, _0x4d7ea9, _0x49f75f) {
-        _0x4d7ea9['memory'] = wasmMemory, _0x4d7ea9['table'] = wasmTable = new WebAssembly[('Table')]({
+      module['asm'] = function (globalArg, env, buffer) {
+        env['memory'] = wasmMemory, env['table'] = wasmTable = new WebAssembly[('Table')]({
           'initial': 0xa0,
           'maximum': 0xa0,
           'element': 'anyfunc'
-        }), _0x4d7ea9['__memory_base'] = 0x400, _0x4d7ea9['__table_base'] = 0x0;
-        var _0xb26733 = createWasm(_0x4d7ea9);
-        return _0xb26733;
+        }), env['__memory_base'] = 0x400, env['__table_base'] = 0x0;
+        var exports = createWasm(env);
+        return exports;
       };
-      var _0x2f9712, tempI64, ASM_CONSTS = [function (_0x3c9375) {
-        const _0xa233aa = UTF8ToString(_0x3c9375);
-        var _0x476a2c = new XMLHttpRequest();
-        _0x476a2c['timeout'] = 0x0, _0x476a2c['responseType'] = '', _0x476a2c['open']('GET', _0xa233aa, ![]), _0x476a2c['onload'] = function (_0x31bebe) {
-          var _0x24c94f = _0x3fe88f;
+      var tempDouble, tempI64, ASM_CONSTS = [function (ptr) {
+        const urlStr = UTF8ToString(ptr);
+        var xhr = new XMLHttpRequest();
+        xhr['timeout'] = 0x0, xhr['responseType'] = '', xhr['open']('GET', urlStr, ![]), xhr['onload'] = function (event) {
           this['status'] == 0xc8 && (tmpstr = this['responseText']);
-        }, _0x476a2c['send']();
-        const _0x533209 = lengthBytesUTF8(tmpstr) + 0x1,
-          _0x1ccbd6 = _malloc(_0x533209);
-        return stringToUTF8(tmpstr, _0x1ccbd6, _0x533209), _0x1ccbd6;
-      }, function (_0x266af1) {
-        var _0x4a9ac3 = UTF8ToString(_0x266af1),
-          _0x577392 = eval(_0x4a9ac3),
-          _0x11790f = lengthBytesUTF8(_0x577392) + 0x1,
-          _0x138323 = _malloc(_0x11790f);
-        return stringToUTF8(_0x577392, _0x138323, _0x11790f), _0x138323;
-      }, function (_0x50cd0c) {
-        const _0x32fd82 = UTF8ToString(_0x50cd0c),
-          _0x52b6c2 = eval(_0x32fd82),
-          _0x3f2e6f = lengthBytesUTF8(_0x52b6c2) + 0x1,
-          _0x28dd99 = _malloc(_0x3f2e6f);
-        return stringToUTF8(_0x52b6c2, _0x28dd99, _0x3f2e6f), _0x28dd99;
+        }, xhr['send']();
+        const byteLen = lengthBytesUTF8(tmpstr) + 0x1,
+          outPtr = _malloc(byteLen);
+        return stringToUTF8(tmpstr, outPtr, byteLen), outPtr;
+      }, function (ptr) {
+        var code = UTF8ToString(ptr),
+          result = eval(code),
+          byteLen = lengthBytesUTF8(result) + 0x1,
+          outPtr = _malloc(byteLen);
+        return stringToUTF8(result, outPtr, byteLen), outPtr;
+      }, function (ptr) {
+        const code = UTF8ToString(ptr),
+          result = eval(code),
+          byteLen = lengthBytesUTF8(result) + 0x1,
+          outPtr = _malloc(byteLen);
+        return stringToUTF8(result, outPtr, byteLen), outPtr;
       }];
 
-      function emscripten_asm_const_ii(_0xe05fb2, _0x2e85d5) {
-        return ASM_CONSTS[_0xe05fb2](_0x2e85d5);
+      function emscripten_asm_const_ii(idx, ptr) {
+        return ASM_CONSTS[idx](ptr);
       }
       var tempDoublePtr = 0x6e00;
 
-      function demangle(_0x5426db) {
-        return _0x5426db;
+      function demangle(symbol) {
+        return symbol;
       }
 
-      function demangleAll(_0x4e69a4) {
-        var _0x29100e = /\b__Z[\w\d_]+/g;
-        return _0x4e69a4['replace'](_0x29100e, function (_0x284caa) {
-          var _0x280523 = demangle(_0x284caa);
-          return _0x284caa === _0x280523 ? _0x284caa : _0x280523 + '\x20[' + _0x284caa + ']';
+      function demangleAll(text) {
+        var funcRegex = /\b__Z[\w\d_]+/g;
+        return text['replace'](funcRegex, function (mangledFunc) {
+          var demangled = demangle(mangledFunc);
+          return mangledFunc === demangled ? mangledFunc : demangled + ' [' + mangledFunc + ']';
         });
       }
 
       function jsStackTrace() {
-        var _0x4d5c88 = new Error();
-        if (!_0x4d5c88['stack']) {
+        var err = new Error();
+        if (!err['stack']) {
           try {
             throw new Error(0x0);
-          } catch (_0x18a02b) {
-            _0x4d5c88 = _0x18a02b;
+          } catch (e) {
+            err = e;
           }
-          if (!_0x4d5c88['stack']) return '(no stack trace available)';
+          if (!err['stack']) return '(no stack trace available)';
         }
-        return _0x4d5c88['stack']['toString']();
+        return err['stack']['toString']();
       }
 
       function stackTrace() {
-        var _0x20d0c4 = jsStackTrace();
-        if (module['extraStackTrace']) _0x20d0c4 += '\x0a' + module['extraStackTrace']();
-        return demangleAll(_0x20d0c4);
+        var stackStr = jsStackTrace();
+        if (module['extraStackTrace']) stackStr += '\x0a' + module['extraStackTrace']();
+        return demangleAll(stackStr);
       }
 
       function ___gxx_personality_v0() {}
       var PATH = {
-          'splitPath': function (_0x43bed7) {
-            var _0x171b15 = /^(\/?|)([\s\S]*?)((?:\.{1,2}|[^\/]+?|)(\.[^.\/]*|))(?:[\/]*)$/;
-            return _0x171b15['exec'](_0x43bed7)['slice'](0x1);
+          'splitPath': function (path) {
+            var splitRegex = /^(\/?|)([\s\S]*?)((?:\.{1,2}|[^\/]+?|)(\.[^.\/]*|))(?:[\/]*)$/;
+            return splitRegex['exec'](path)['slice'](0x1);
           },
-          'normalizeArray': function (_0x4e3279, _0x1dc551) {
-            var _0x36c8db = 0x0;
-            for (var _0x4d1653 = _0x4e3279['length'] - 0x1; _0x4d1653 >= 0x0; _0x4d1653--) {
-              var _0xb30ef2 = _0x4e3279[_0x4d1653];
-              if (_0xb30ef2 === '.') _0x4e3279['splice'](_0x4d1653, 0x1);
+          'normalizeArray': function (parts, allowAboveRoot) {
+            var upCount = 0x0;
+            for (var i = parts['length'] - 0x1; i >= 0x0; i--) {
+              var last = parts[i];
+              if (last === '.') parts['splice'](i, 0x1);
               else {
-                if (_0xb30ef2 === '..') _0x4e3279['splice'](_0x4d1653, 0x1), _0x36c8db++;
-                else _0x36c8db && (_0x4e3279['splice'](_0x4d1653, 0x1), _0x36c8db--);
+                if (last === '..') parts['splice'](i, 0x1), upCount++;
+                else upCount && (parts['splice'](i, 0x1), upCount--);
               }
             }
-            if (_0x1dc551)
-              for (; _0x36c8db; _0x36c8db--) {
-                _0x4e3279['unshift']('..');
+            if (allowAboveRoot)
+              for (; upCount; upCount--) {
+                parts['unshift']('..');
               }
-            return _0x4e3279;
+            return parts;
           },
-          'normalize': function (_0x288b47) {
-            var _0x22400b = _0x288b47['charAt'](0x0) === '/',
-              _0x5458a8 = _0x288b47['substr'](-0x1) === '/';
-            return _0x288b47 = PATH['normalizeArray'](_0x288b47['split']('/')['filter'](function (_0x19c5f3) {
-              return !!_0x19c5f3;
-            }), !_0x22400b)['join']('/'), !_0x288b47 && !_0x22400b && (_0x288b47 = '.'), _0x288b47 && _0x5458a8 && (_0x288b47 += '/'), (_0x22400b ? '/' : '') + _0x288b47;
+          'normalize': function (path) {
+            var isAbsolute = path['charAt'](0x0) === '/',
+              trailingSlash = path['substr'](-0x1) === '/';
+            return path = PATH['normalizeArray'](path['split']('/')['filter'](function (part) {
+              return !!part;
+            }), !isAbsolute)['join']('/'), !path && !isAbsolute && (path = '.'), path && trailingSlash && (path += '/'), (isAbsolute ? '/' : '') + path;
           },
-          'dirname': function (_0x146328) {
-            var _0x3f4192 = PATH['splitPath'](_0x146328),
-              _0x9b2750 = _0x3f4192[0x0],
-              _0x449902 = _0x3f4192[0x1];
-            if (!_0x9b2750 && !_0x449902) return '.';
-            return _0x449902 && (_0x449902 = _0x449902['substr'](0x0, _0x449902['length'] - 0x1)), _0x9b2750 + _0x449902;
+          'dirname': function (path) {
+            var result = PATH['splitPath'](path),
+              root = result[0x0],
+              dir = result[0x1];
+            if (!root && !dir) return '.';
+            return dir && (dir = dir['substr'](0x0, dir['length'] - 0x1)), root + dir;
           },
-          'basename': function (_0x37e053) {
-            if (_0x37e053 === '/') return '/';
-            var _0x4e24ef = _0x37e053['lastIndexOf']('/');
-            if (_0x4e24ef === -0x1) return _0x37e053;
-            return _0x37e053['substr'](_0x4e24ef + 0x1);
+          'basename': function (path) {
+            if (path === '/') return '/';
+            var lastSlash = path['lastIndexOf']('/');
+            if (lastSlash === -0x1) return path;
+            return path['substr'](lastSlash + 0x1);
           },
-          'extname': function (_0x276e7c) {
-            return PATH['splitPath'](_0x276e7c)[0x3];
+          'extname': function (path) {
+            return PATH['splitPath'](path)[0x3];
           },
           'join': function () {
-            var _0x466508 = Array['prototype']['slice']['call'](arguments, 0x0);
-            return PATH['normalize'](_0x466508['join']('/'));
+            var parts = Array['prototype']['slice']['call'](arguments, 0x0);
+            return PATH['normalize'](parts['join']('/'));
           },
-          'join2': function (_0xacbc4d, _0x558580) {
-            return PATH['normalize'](_0xacbc4d + '/' + _0x558580);
+          'join2': function (a, b) {
+            return PATH['normalize'](a + '/' + b);
           }
         },
         SYSCALLS = {
           'buffers': [null, [],
             []
           ],
-          'printChar': function (_0x5517d6, _0x14202b) {
-            var _0x63e071 = SYSCALLS['buffers'][_0x5517d6];
-            _0x14202b === 0x0 || _0x14202b === 0xa ? ((_0x5517d6 === 0x1 ? printOutput : printError)(UTF8ArrayToString(_0x63e071, 0x0)), _0x63e071['length'] = 0x0) : _0x63e071['push'](_0x14202b);
+          'printChar': function (fd, chr) {
+            var buf = SYSCALLS['buffers'][fd];
+            chr === 0x0 || chr === 0xa ? ((fd === 0x1 ? printOutput : printError)(UTF8ArrayToString(buf, 0x0)), buf['length'] = 0x0) : buf['push'](chr);
           },
           'varargs': 0x0,
-          'get': function (_0x42a150) {
+          'get': function (_typeHint) {
             SYSCALLS['varargs'] += 0x4;
-            var _0x4989f8 = HEAP32[SYSCALLS['varargs'] - 0x4 >> 0x2];
-            return _0x4989f8;
+            var val = HEAP32[SYSCALLS['varargs'] - 0x4 >> 0x2];
+            return val;
           },
           'getStr': function () {
-            var _0x2bfaae = UTF8ToString(SYSCALLS['get']());
-            return _0x2bfaae;
+            var str = UTF8ToString(SYSCALLS['get']());
+            return str;
           },
           'get64': function () {
-            var _0x301a27 = SYSCALLS['get'](),
-              _0x220d75 = SYSCALLS['get']();
-            return _0x301a27;
+            var lo = SYSCALLS['get'](),
+              hi = SYSCALLS['get']();
+            return lo;
           },
           'getZero': function () {
             SYSCALLS['get']();
           }
         };
 
-      function ___syscall140(_0x135460, _0x331b68) {
-        SYSCALLS['varargs'] = _0x331b68;
+      function ___syscall140(which, varargs) {
+        SYSCALLS['varargs'] = varargs;
         try {
-          var _0x2f6ece = SYSCALLS['getStreamFromFD'](),
-            _0xb2b953 = SYSCALLS['get'](),
-            _0x31c872 = SYSCALLS['get'](),
-            _0xe3722e = SYSCALLS['get'](),
-            _0x3e0e28 = SYSCALLS['get']();
+          var stream = SYSCALLS['getStreamFromFD'](),
+            offset_high = SYSCALLS['get'](),
+            offset_low = SYSCALLS['get'](),
+            whence = SYSCALLS['get'](),
+            result = SYSCALLS['get']();
           return 0x0;
-        } catch (_0x2fd779) {
-          if (typeof FS === 'undefined' || !(_0x2fd779 instanceof FS['ErrnoError'])) abort(_0x2fd779);
-          return -_0x2fd779['errno'];
+        } catch (e) {
+          if (typeof FS === 'undefined' || !(e instanceof FS['ErrnoError'])) abort(e);
+          return -e['errno'];
         }
       }
 
+      // 刷新输出缓冲区（无文件系统版本）
       function flush_NO_FILESYSTEM() {
-        var _0x5ad6a7 = module['_fflush'];
-        if (_0x5ad6a7) _0x5ad6a7(0x0);
-        var _0x4780e5 = SYSCALLS['buffers'];
-        if (_0x4780e5[0x1]['length']) SYSCALLS['printChar'](0x1, 0xa);
-        if (_0x4780e5[0x2]['length']) SYSCALLS['printChar'](0x2, 0xa);
+        var fflushFn = module['_fflush'];
+        if (fflushFn) fflushFn(0x0);
+        var buffers = SYSCALLS['buffers'];
+        if (buffers[0x1]['length']) SYSCALLS['printChar'](0x1, 0xa);
+        if (buffers[0x2]['length']) SYSCALLS['printChar'](0x2, 0xa);
       }
 
-      function ___syscall146(_0x27bcdb, _0x2fbf9e) {
-        SYSCALLS['varargs'] = _0x2fbf9e;
+      function ___syscall146(which, varargs) {
+        SYSCALLS['varargs'] = varargs;
         try {
-          var _0x44fcf9 = SYSCALLS['get'](),
-            _0x2023ae = SYSCALLS['get'](),
-            _0x33711e = SYSCALLS['get'](),
-            _0x4fbd85 = 0x0;
-          for (var _0x33149d = 0x0; _0x33149d < _0x33711e; _0x33149d++) {
-            var _0x2a65c9 = HEAP32[_0x2023ae + _0x33149d * 0x8 >> 0x2],
-              _0x3feeac = HEAP32[_0x2023ae + (_0x33149d * 0x8 + 0x4) >> 0x2];
-            for (var _0x5ef0de = 0x0; _0x5ef0de < _0x3feeac; _0x5ef0de++) {
-              SYSCALLS['printChar'](_0x44fcf9, HEAPU8[_0x2a65c9 + _0x5ef0de]);
+          var fd = SYSCALLS['get'](),
+            iov = SYSCALLS['get'](),
+            iovcnt = SYSCALLS['get'](),
+            ret = 0x0;
+          for (var i = 0x0; i < iovcnt; i++) {
+            var ptr = HEAP32[iov + i * 0x8 >> 0x2],
+              len = HEAP32[iov + (i * 0x8 + 0x4) >> 0x2];
+            for (var j = 0x0; j < len; j++) {
+              SYSCALLS['printChar'](fd, HEAPU8[ptr + j]);
             }
-            _0x4fbd85 += _0x3feeac;
+            ret += len;
           }
-          return _0x4fbd85;
-        } catch (_0x4c4116) {
-          if (typeof FS === 'undefined' || !(_0x4c4116 instanceof FS['ErrnoError'])) abort(_0x4c4116);
-          return -_0x4c4116['errno'];
+          return ret;
+        } catch (e) {
+          if (typeof FS === 'undefined' || !(e instanceof FS['ErrnoError'])) abort(e);
+          return -e['errno'];
         }
       }
 
-      function ___syscall54(_0x12af6b, _0x46d840) {
-        SYSCALLS['varargs'] = _0x46d840;
+      function ___syscall54(which, varargs) {
+        SYSCALLS['varargs'] = varargs;
         try {
           return 0x0;
-        } catch (_0x5e9ef4) {
-          if (typeof FS === 'undefined' || !(_0x5e9ef4 instanceof FS['ErrnoError'])) abort(_0x5e9ef4);
-          return -_0x5e9ef4['errno'];
+        } catch (e) {
+          if (typeof FS === 'undefined' || !(e instanceof FS['ErrnoError'])) abort(e);
+          return -e['errno'];
         }
       }
 
-      function ___syscall6(_0x264bd2, _0x2edc91) {
-        SYSCALLS['varargs'] = _0x2edc91;
+      function ___syscall6(which, varargs) {
+        SYSCALLS['varargs'] = varargs;
         try {
-          var _0x50735f = SYSCALLS['getStreamFromFD']();
+          var stream = SYSCALLS['getStreamFromFD']();
           return 0x0;
-        } catch (_0x478609) {
-          if (typeof FS === 'undefined' || !(_0x478609 instanceof FS['ErrnoError'])) abort(_0x478609);
-          return -_0x478609['errno'];
+        } catch (e) {
+          if (typeof FS === 'undefined' || !(e instanceof FS['ErrnoError'])) abort(e);
+          return -e['errno'];
         }
       }
 
-      function __emscripten_fetch_free(_0x21d522) {
-        delete Fetch['xhrs'][_0x21d522 - 0x1];
+      function __emscripten_fetch_free(xhrIdx) {
+        delete Fetch['xhrs'][xhrIdx - 0x1];
       }
 
       function getHeapSize() {
@@ -830,219 +821,208 @@ var CNTVModule = function () {
       }
       var Fetch = {
         'xhrs': [],
-        'setu64': function (_0x546c03, _0x48a811) {
-          HEAPU32[_0x546c03 >> 0x2] = _0x48a811, HEAPU32[_0x546c03 + 0x4 >> 0x2] = _0x48a811 / 0x100000000 | 0x0;
+        'setu64': function (addr, val) {
+          HEAPU32[addr >> 0x2] = val, HEAPU32[addr + 0x4 >> 0x2] = val / 0x100000000 | 0x0;
         },
-        'openDatabase': function (_0x3dfe2f, _0xd90619, _0x5f05bf, _0x110076) {
+        'openDatabase': function (dbName, version, onSuccess, onError) {
           try {
-            var _0x21d534 = indexedDB['open'](_0x3dfe2f, _0xd90619);
-          } catch (_0x4eaa9e) {
-            return _0x110076(_0x4eaa9e);
+            var dbRequest = indexedDB['open'](dbName, version);
+          } catch (e) {
+            return onError(e);
           }
-          _0x21d534['onupgradeneeded'] = function (_0x391cf2) {
-            var _0x41cc26 = _0x53de7b,
-              _0x565f66 = _0x391cf2['target']['result'];
-            _0x565f66['objectStoreNames']['contains']('FILES') && _0x565f66['deleteObjectStore']('FILES'), _0x565f66['createObjectStore']('FILES');
-          }, _0x21d534['onsuccess'] = function (_0x4277cd) {
-            var _0x109c8d = _0x53de7b;
-            _0x5f05bf(_0x4277cd['target']['result']);
-          }, _0x21d534['onerror'] = function (_0x2f77c6) {
-            _0x110076(_0x2f77c6);
+          dbRequest['onupgradeneeded'] = function (event) {
+            db = event['target']['result'];
+            db['objectStoreNames']['contains']('FILES') && db['deleteObjectStore']('FILES'), db['createObjectStore']('FILES');
+          }, dbRequest['onsuccess'] = function (event) {
+            onSuccess(event['target']['result']);
+          }, dbRequest['onerror'] = function (event) {
+            onError(event);
           };
         },
         'staticInit': function () {
-          var _0x66e418 = typeof ENVIRONMENT_IS_FETCH_WORKER === 'undefined',
-            _0x175a7b = function (_0x235974) {
-              var _0x1fd337 = _0x1b8c7b;
-              Fetch['dbInstance'] = _0x235974, _0x66e418 && removeRunDependency('library_fetch_init');
+          var isNotFetchWorker = typeof ENVIRONMENT_IS_FETCH_WORKER === 'undefined',
+            onDBOpen = function (dbInstance) {
+              Fetch['dbInstance'] = dbInstance, isNotFetchWorker && removeRunDependency('library_fetch_init');
             },
-            _0x482248 = function () {
-              var _0x3996bc = _0x1b8c7b;
-              Fetch['dbInstance'] = ![], _0x66e418 && removeRunDependency('library_fetch_init');
+            onDBError = function () {
+              Fetch['dbInstance'] = ![], isNotFetchWorker && removeRunDependency('library_fetch_init');
             };
-          Fetch['openDatabase']('emscripten_filesystem', 0x1, _0x175a7b, _0x482248);
+          Fetch['openDatabase']('emscripten_filesystem', 0x1, onDBOpen, onDBError);
           if (typeof ENVIRONMENT_IS_FETCH_WORKER === 'undefined' || !ENVIRONMENT_IS_FETCH_WORKER) addRunDependency('library_fetch_init');
         }
       };
 
       // 通过 XMLHttpRequest 执行 Emscripten fetch 请求
-      function __emscripten_fetch_xhr(_0x5b5625, _0x5ef437, _0x2b4538, _0x4b587d, _0x1760d0) {
-        var _0x410352 = HEAPU32[_0x5b5625 + 0x8 >> 0x2];
-        if (!_0x410352) {
-          _0x2b4538(_0x5b5625, 0x0, '未指定 URL！');
+      function __emscripten_fetch_xhr(fetch, onSuccess, onError, onProgress, onReadyStateChange) {
+        var fetchAttrFlags = HEAPU32[fetch + 0x8 >> 0x2];
+        if (!fetchAttrFlags) {
+          onError(fetch, 0x0, '未指定 URL！');
           return;
         }
-        var _0x1a5164 = UTF8ToString(_0x410352),
-          _0x326ba2 = _0x5b5625 + 0x70,
-          _0x44a52d = UTF8ToString(_0x326ba2);
-        if (!_0x44a52d) _0x44a52d = 'GET';
-        var _0x21c435 = HEAPU32[_0x326ba2 + 0x20 >> 0x2],
-          _0x7c127f = HEAPU32[_0x326ba2 + 0x34 >> 0x2],
-          _0xf3d568 = HEAPU32[_0x326ba2 + 0x38 >> 0x2],
-          _0xc68bdb = !!HEAPU32[_0x326ba2 + 0x3c >> 0x2],
-          _0x178e1f = HEAPU32[_0x326ba2 + 0x40 >> 0x2],
-          _0x3a9e73 = HEAPU32[_0x326ba2 + 0x44 >> 0x2],
-          _0x56c829 = HEAPU32[_0x326ba2 + 0x48 >> 0x2],
-          _0x4160e8 = HEAPU32[_0x326ba2 + 0x4c >> 0x2],
-          _0x15211c = HEAPU32[_0x326ba2 + 0x50 >> 0x2],
-          _0x54b916 = HEAPU32[_0x326ba2 + 0x54 >> 0x2],
-          _0x5ee975 = HEAPU32[_0x326ba2 + 0x58 >> 0x2],
-          _0x4040f5 = !!(_0x7c127f & 0x1),
-          _0x354d40 = !!(_0x7c127f & 0x2),
-          _0x21b3f6 = !!(_0x7c127f & 0x4),
-          _0x49113a = !!(_0x7c127f & 0x8),
-          _0x408bdc = !!(_0x7c127f & 0x10),
-          _0x1c4644 = !!(_0x7c127f & 0x40),
-          _0x395d8e = !!(_0x7c127f & 0x80),
-          _0x12f62a = _0x3a9e73 ? UTF8ToString(_0x3a9e73) : undefined,
-          _0x234ca0 = _0x56c829 ? UTF8ToString(_0x56c829) : undefined,
-          _0x331919 = _0x15211c ? UTF8ToString(_0x15211c) : undefined,
-          _0x503fcf = new XMLHttpRequest();
-        _0x503fcf['withCredentials'] = _0xc68bdb, _0x503fcf['open'](_0x44a52d, _0x1a5164, !_0x1c4644, _0x12f62a, _0x234ca0);
-        if (!_0x1c4644) _0x503fcf['timeout'] = _0xf3d568;
-        _0x503fcf['url_'] = _0x1a5164, assert(!_0x354d40, '流式传输使用了不再支持的 moz-chunked-arraybuffer；待办：使用 fetch() 重写'), _0x503fcf['responseType'] = 'arraybuffer';
-        _0x15211c && _0x503fcf['overrideMimeType'](_0x331919);
-        if (_0x4160e8)
+        var url = UTF8ToString(fetchAttrFlags),
+          requestStruct = fetch + 0x70,
+          method = UTF8ToString(requestStruct);
+        if (!method) method = 'GET';
+        var id = HEAPU32[requestStruct + 0x20 >> 0x2],
+          fetchAttrFlags = HEAPU32[requestStruct + 0x34 >> 0x2],
+          timeoutMs = HEAPU32[requestStruct + 0x38 >> 0x2],
+          withCredentials = !!HEAPU32[requestStruct + 0x3c >> 0x2],
+          timeout = HEAPU32[requestStruct + 0x40 >> 0x2],
+          userNamePtr = HEAPU32[requestStruct + 0x44 >> 0x2],
+          passwordPtr = HEAPU32[requestStruct + 0x48 >> 0x2],
+          headersPtr = HEAPU32[requestStruct + 0x4c >> 0x2],
+          mimeTypePtr = HEAPU32[requestStruct + 0x50 >> 0x2],
+          bodyPtr = HEAPU32[requestStruct + 0x54 >> 0x2],
+          bodyLen = HEAPU32[requestStruct + 0x58 >> 0x2],
+          loadToMem = !!(fetchAttrFlags & 0x1),
+          streamData = !!(fetchAttrFlags & 0x2),
+          persistFile = !!(fetchAttrFlags & 0x4),
+          isViaIDB = !!(fetchAttrFlags & 0x8),
+          noDownload = !!(fetchAttrFlags & 0x10),
+          syncXHR = !!(fetchAttrFlags & 0x40),
+          waitIDB = !!(fetchAttrFlags & 0x80),
+          userName = userNamePtr ? UTF8ToString(userNamePtr) : undefined,
+          password = passwordPtr ? UTF8ToString(passwordPtr) : undefined,
+          mimeType = mimeTypePtr ? UTF8ToString(mimeTypePtr) : undefined,
+          xhrObj = new XMLHttpRequest();
+        xhrObj['withCredentials'] = withCredentials, xhrObj['open'](method, url, !syncXHR, userName, password);
+        if (!syncXHR) xhrObj['timeout'] = timeoutMs;
+        xhrObj['url_'] = url, assert(!streamData, '流式传输使用了不再支持的 moz-chunked-arraybuffer；待办：使用 fetch() 重写'), xhrObj['responseType'] = 'arraybuffer';
+        mimeTypePtr && xhrObj['overrideMimeType'](mimeType);
+        if (headersPtr)
           for (;;) {
-            var _0x23225e = HEAPU32[_0x4160e8 >> 0x2];
-            if (!_0x23225e) break;
-            var _0x445114 = HEAPU32[_0x4160e8 + 0x4 >> 0x2];
-            if (!_0x445114) break;
-            _0x4160e8 += 0x8;
-            var _0x168f7e = UTF8ToString(_0x23225e),
-              _0x3411b7 = UTF8ToString(_0x445114);
-            _0x503fcf['setRequestHeader'](_0x168f7e, _0x3411b7);
+            var headerKeyPtr = HEAPU32[headersPtr >> 0x2];
+            if (!headerKeyPtr) break;
+            var headerValPtr = HEAPU32[headersPtr + 0x4 >> 0x2];
+            if (!headerValPtr) break;
+            headersPtr += 0x8;
+            var headerKey = UTF8ToString(headerKeyPtr),
+              headerVal = UTF8ToString(headerValPtr);
+            xhrObj['setRequestHeader'](headerKey, headerVal);
           }
-        Fetch['xhrs']['push'](_0x503fcf);
-        var _0x398835 = Fetch['xhrs']['length'];
-        HEAPU32[_0x5b5625 + 0x0 >> 0x2] = _0x398835;
-        var _0x5eb7c2 = _0x54b916 && _0x5ee975 ? HEAPU8['slice'](_0x54b916, _0x54b916 + _0x5ee975) : null;
-        _0x503fcf['onload'] = function (_0x4cd24e) {
-          var _0x4b0728 = _0x22f0bb,
-            _0xf402c7 = _0x503fcf['response'] ? _0x503fcf['response']['byteLength'] : 0x0,
-            _0x2488bd = 0x0,
-            _0x1efbc2 = 0x0;
-          _0x4040f5 && !_0x354d40 && (_0x1efbc2 = _0xf402c7, _0x2488bd = _malloc(_0x1efbc2), HEAPU8['set'](new Uint8Array(_0x503fcf['response']), _0x2488bd));
-          HEAPU32[_0x5b5625 + 0xc >> 0x2] = _0x2488bd, Fetch['setu64'](_0x5b5625 + 0x10, _0x1efbc2), Fetch['setu64'](_0x5b5625 + 0x18, 0x0);
-          _0xf402c7 && Fetch['setu64'](_0x5b5625 + 0x20, _0xf402c7);
-          HEAPU16[_0x5b5625 + 0x28 >> 0x1] = _0x503fcf['readyState'];
-          if (_0x503fcf['readyState'] === 0x4 && _0x503fcf['status'] === 0x0) {
-            if (_0xf402c7 > 0x0) _0x503fcf['status'] = 0xc8;
-            else _0x503fcf['status'] = 0x194;
+        Fetch['xhrs']['push'](xhrObj);
+        var xhrIdx = Fetch['xhrs']['length'];
+        HEAPU32[fetch + 0x0 >> 0x2] = xhrIdx;
+        var bodyData = bodyPtr && bodyLen ? HEAPU8['slice'](bodyPtr, bodyPtr + bodyLen) : null;
+        xhrObj['onload'] = function (event) {
+          byteLen = xhrObj['response'] ? xhrObj['response']['byteLength'] : 0x0,
+            dataPtr = 0x0,
+            dataLen = 0x0;
+          loadToMem && !streamData && (dataLen = byteLen, dataPtr = _malloc(dataLen), HEAPU8['set'](new Uint8Array(xhrObj['response']), dataPtr));
+          HEAPU32[fetch + 0xc >> 0x2] = dataPtr, Fetch['setu64'](fetch + 0x10, dataLen), Fetch['setu64'](fetch + 0x18, 0x0);
+          byteLen && Fetch['setu64'](fetch + 0x20, byteLen);
+          HEAPU16[fetch + 0x28 >> 0x1] = xhrObj['readyState'];
+          if (xhrObj['readyState'] === 0x4 && xhrObj['status'] === 0x0) {
+            if (byteLen > 0x0) xhrObj['status'] = 0xc8;
+            else xhrObj['status'] = 0x194;
           }
-          HEAPU16[_0x5b5625 + 0x2a >> 0x1] = _0x503fcf['status'];
-          if (_0x503fcf['statusText']) stringToUTF8(_0x503fcf['statusText'], _0x5b5625 + 0x2c, 0x40);
-          if (_0x503fcf['status'] >= 0xc8 && _0x503fcf['status'] < 0x12c) {
-            if (_0x5ef437) _0x5ef437(_0x5b5625, _0x503fcf, _0x4cd24e);
+          HEAPU16[fetch + 0x2a >> 0x1] = xhrObj['status'];
+          if (xhrObj['statusText']) stringToUTF8(xhrObj['statusText'], fetch + 0x2c, 0x40);
+          if (xhrObj['status'] >= 0xc8 && xhrObj['status'] < 0x12c) {
+            if (onSuccess) onSuccess(fetch, xhrObj, event);
           } else {
-            if (_0x2b4538) _0x2b4538(_0x5b5625, _0x503fcf, _0x4cd24e);
+            if (onError) onError(fetch, xhrObj, event);
           }
-        }, _0x503fcf['onerror'] = function (_0x16f270) {
-          var _0x4b1fab = _0x22f0bb,
-            _0x50a8c8 = _0x503fcf['status'];
-          if (_0x503fcf['readyState'] === 0x4 && _0x50a8c8 === 0x0) _0x50a8c8 = 0x194;
-          HEAPU32[_0x5b5625 + 0xc >> 0x2] = 0x0, Fetch['setu64'](_0x5b5625 + 0x10, 0x0), Fetch['setu64'](_0x5b5625 + 0x18, 0x0), Fetch['setu64'](_0x5b5625 + 0x20, 0x0), HEAPU16[_0x5b5625 + 0x28 >> 0x1] = _0x503fcf['readyState'], HEAPU16[_0x5b5625 + 0x2a >> 0x1] = _0x50a8c8;
-          if (_0x2b4538) _0x2b4538(_0x5b5625, _0x503fcf, _0x16f270);
-        }, _0x503fcf['ontimeout'] = function (_0x3d1545) {
-          if (_0x2b4538) _0x2b4538(_0x5b5625, _0x503fcf, _0x3d1545);
-        }, _0x503fcf['onprogress'] = function (_0xf56419) {
-          var _0x191cfa = _0x22f0bb,
-            _0x28e2fb = _0x4040f5 && _0x354d40 && _0x503fcf['response'] ? _0x503fcf['response']['byteLength'] : 0x0,
-            _0x742638 = 0x0;
-          _0x4040f5 && _0x354d40 && (_0x742638 = _malloc(_0x28e2fb), HEAPU8['set'](new Uint8Array(_0x503fcf['response']), _0x742638));
-          HEAPU32[_0x5b5625 + 0xc >> 0x2] = _0x742638, Fetch['setu64'](_0x5b5625 + 0x10, _0x28e2fb), Fetch['setu64'](_0x5b5625 + 0x18, _0xf56419['loaded'] - _0x28e2fb), Fetch['setu64'](_0x5b5625 + 0x20, _0xf56419['total']), HEAPU16[_0x5b5625 + 0x28 >> 0x1] = _0x503fcf['readyState'];
-          if (_0x503fcf['readyState'] >= 0x3 && _0x503fcf['status'] === 0x0 && _0xf56419['loaded'] > 0x0) _0x503fcf['status'] = 0xc8;
-          HEAPU16[_0x5b5625 + 0x2a >> 0x1] = _0x503fcf['status'];
-          if (_0x503fcf['statusText']) stringToUTF8(_0x503fcf['statusText'], _0x5b5625 + 0x2c, 0x40);
-          if (_0x4b587d) _0x4b587d(_0x5b5625, _0x503fcf, _0xf56419);
-        }, _0x503fcf['onreadystatechange'] = function (_0x5eafe3) {
-          var _0xa10428 = _0x22f0bb;
-          HEAPU16[_0x5b5625 + 0x28 >> 0x1] = _0x503fcf['readyState'];
-          _0x503fcf['readyState'] >= 0x2 && (HEAPU16[_0x5b5625 + 0x2a >> 0x1] = _0x503fcf['status']);
-          if (_0x1760d0) _0x1760d0(_0x5b5625, _0x503fcf, _0x5eafe3);
+        }, xhrObj['onerror'] = function (event) {
+          status = xhrObj['status'];
+          if (xhrObj['readyState'] === 0x4 && status === 0x0) status = 0x194;
+          HEAPU32[fetch + 0xc >> 0x2] = 0x0, Fetch['setu64'](fetch + 0x10, 0x0), Fetch['setu64'](fetch + 0x18, 0x0), Fetch['setu64'](fetch + 0x20, 0x0), HEAPU16[fetch + 0x28 >> 0x1] = xhrObj['readyState'], HEAPU16[fetch + 0x2a >> 0x1] = status;
+          if (onError) onError(fetch, xhrObj, event);
+        }, xhrObj['ontimeout'] = function (event) {
+          if (onError) onError(fetch, xhrObj, event);
+        }, xhrObj['onprogress'] = function (progressEvent) {
+          chunkLen = loadToMem && streamData && xhrObj['response'] ? xhrObj['response']['byteLength'] : 0x0,
+            chunkPtr = 0x0;
+          loadToMem && streamData && (chunkPtr = _malloc(chunkLen), HEAPU8['set'](new Uint8Array(xhrObj['response']), chunkPtr));
+          HEAPU32[fetch + 0xc >> 0x2] = chunkPtr, Fetch['setu64'](fetch + 0x10, chunkLen), Fetch['setu64'](fetch + 0x18, progressEvent['loaded'] - chunkLen), Fetch['setu64'](fetch + 0x20, progressEvent['total']), HEAPU16[fetch + 0x28 >> 0x1] = xhrObj['readyState'];
+          if (xhrObj['readyState'] >= 0x3 && xhrObj['status'] === 0x0 && progressEvent['loaded'] > 0x0) xhrObj['status'] = 0xc8;
+          HEAPU16[fetch + 0x2a >> 0x1] = xhrObj['status'];
+          if (xhrObj['statusText']) stringToUTF8(xhrObj['statusText'], fetch + 0x2c, 0x40);
+          if (onProgress) onProgress(fetch, xhrObj, progressEvent);
+        }, xhrObj['onreadystatechange'] = function (event) {
+          HEAPU16[fetch + 0x28 >> 0x1] = xhrObj['readyState'];
+          xhrObj['readyState'] >= 0x2 && (HEAPU16[fetch + 0x2a >> 0x1] = xhrObj['status']);
+          if (onReadyStateChange) onReadyStateChange(fetch, xhrObj, event);
         };
         try {
-          _0x503fcf['send'](_0x5eb7c2);
-        } catch (_0x575571) {
-          if (_0x2b4538) _0x2b4538(_0x5b5625, _0x503fcf, _0x575571);
+          xhrObj['send'](bodyData);
+        } catch (e) {
+          if (onError) onError(fetch, xhrObj, e);
         }
       }
 
-      function __emscripten_fetch_cache_data(_0x5eeb8f, _0x5ec101, _0x3b54b3, _0x25124e, _0x426cb5) {
-        if (!_0x5eeb8f) {
-          _0x426cb5(_0x5ec101, 0x0, 'IndexedDB 不可用！');
+      function __emscripten_fetch_cache_data(db, fetch, data, onSuccess, onError) {
+        if (!db) {
+          onError(fetch, 0x0, 'IndexedDB 不可用！');
           return;
         }
-        var _0x243274 = _0x5ec101 + 0x70,
-          _0x2f9d20 = HEAPU32[_0x243274 + 0x40 >> 0x2];
-        if (!_0x2f9d20) _0x2f9d20 = HEAPU32[_0x5ec101 + 0x8 >> 0x2];
-        var _0x466778 = UTF8ToString(_0x2f9d20);
+        var requestStruct = fetch + 0x70,
+          urlPtr = HEAPU32[requestStruct + 0x40 >> 0x2];
+        if (!urlPtr) urlPtr = HEAPU32[fetch + 0x8 >> 0x2];
+        var urlStr = UTF8ToString(urlPtr);
         try {
-          var _0x4abd3d = _0x5eeb8f['transaction'](['FILES'], 'readwrite'),
-            _0x1888cf = _0x4abd3d['objectStore']('FILES'),
-            _0x2035db = _0x1888cf['put'](_0x3b54b3, _0x466778);
-          _0x2035db['onsuccess'] = function (_0x371c75) {
-            HEAPU16[_0x5ec101 + 0x28 >> 0x1] = 0x4, HEAPU16[_0x5ec101 + 0x2a >> 0x1] = 0xc8, stringToUTF8('OK', _0x5ec101 + 0x2c, 0x40), _0x25124e(_0x5ec101, 0x0, _0x466778);
-          }, _0x2035db['onerror'] = function (_0x5165ae) {
-            var _0x10ec95 = _0x2c7a8c;
-            HEAPU16[_0x5ec101 + 0x28 >> 0x1] = 0x4, HEAPU16[_0x5ec101 + 0x2a >> 0x1] = 0x19d, stringToUTF8('负载过大', _0x5ec101 + 0x2c, 0x40), _0x426cb5(_0x5ec101, 0x0, _0x5165ae);
+          var transaction = db['transaction'](['FILES'], 'readwrite'),
+            store = transaction['objectStore']('FILES'),
+            request = store['put'](data, urlStr);
+          request['onsuccess'] = function (event) {
+            HEAPU16[fetch + 0x28 >> 0x1] = 0x4, HEAPU16[fetch + 0x2a >> 0x1] = 0xc8, stringToUTF8('OK', fetch + 0x2c, 0x40), onSuccess(fetch, 0x0, urlStr);
+          }, request['onerror'] = function (event) {
+            HEAPU16[fetch + 0x28 >> 0x1] = 0x4, HEAPU16[fetch + 0x2a >> 0x1] = 0x19d, stringToUTF8('负载过大', fetch + 0x2c, 0x40), onError(fetch, 0x0, event);
           };
-        } catch (_0x5a687c) {
-          _0x426cb5(_0x5ec101, 0x0, _0x5a687c);
+        } catch (e) {
+          onError(fetch, 0x0, e);
         }
       }
 
-      function __emscripten_fetch_load_cached_data(_0x159376, _0x504f6d, _0x54374d, _0x25326c) {
-        if (!_0x159376) {
-          _0x25326c(_0x504f6d, 0x0, 'IndexedDB 不可用！');
+      function __emscripten_fetch_load_cached_data(db, fetch, onSuccess, onError) {
+        if (!db) {
+          onError(fetch, 0x0, 'IndexedDB 不可用！');
           return;
         }
-        var _0x320ab6 = _0x504f6d + 0x70,
-          _0x222397 = HEAPU32[_0x320ab6 + 0x40 >> 0x2];
-        if (!_0x222397) _0x222397 = HEAPU32[_0x504f6d + 0x8 >> 0x2];
-        var _0xe97da6 = UTF8ToString(_0x222397);
+        var requestStruct = fetch + 0x70,
+          urlPtr = HEAPU32[requestStruct + 0x40 >> 0x2];
+        if (!urlPtr) urlPtr = HEAPU32[fetch + 0x8 >> 0x2];
+        var urlStr = UTF8ToString(urlPtr);
         try {
-          var _0x14ebc4 = _0x159376['transaction'](['FILES'], 'readonly'),
-            _0x36b1ab = _0x14ebc4['objectStore']('FILES'),
-            _0x15f463 = _0x36b1ab['get'](_0xe97da6);
-          _0x15f463['onsuccess'] = function (_0x1c1571) {
-            var _0x562666 = _0x3c6aa5;
-            if (_0x1c1571['target']['result']) {
-              var _0x5d591e = _0x1c1571['target']['result'],
-                _0x27ac8b = _0x5d591e['byteLength'] || _0x5d591e['length'],
-                _0xd37c27 = _malloc(_0x27ac8b);
-              HEAPU8['set'](new Uint8Array(_0x5d591e), _0xd37c27), HEAPU32[_0x504f6d + 0xc >> 0x2] = _0xd37c27, Fetch['setu64'](_0x504f6d + 0x10, _0x27ac8b), Fetch['setu64'](_0x504f6d + 0x18, 0x0), Fetch['setu64'](_0x504f6d + 0x20, _0x27ac8b), HEAPU16[_0x504f6d + 0x28 >> 0x1] = 0x4, HEAPU16[_0x504f6d + 0x2a >> 0x1] = 0xc8, stringToUTF8('OK', _0x504f6d + 0x2c, 0x40), _0x54374d(_0x504f6d, 0x0, _0x5d591e);
-            } else HEAPU16[_0x504f6d + 0x28 >> 0x1] = 0x4, HEAPU16[_0x504f6d + 0x2a >> 0x1] = 0x194, stringToUTF8('未找到', _0x504f6d + 0x2c, 0x40), _0x25326c(_0x504f6d, 0x0, 'no data');
-          }, _0x15f463['onerror'] = function (_0x4d0e9d) {
-            HEAPU16[_0x504f6d + 0x28 >> 0x1] = 0x4, HEAPU16[_0x504f6d + 0x2a >> 0x1] = 0x194, stringToUTF8('未找到', _0x504f6d + 0x2c, 0x40), _0x25326c(_0x504f6d, 0x0, _0x4d0e9d);
+          var transaction = db['transaction'](['FILES'], 'readonly'),
+            store = transaction['objectStore']('FILES'),
+            request = store['get'](urlStr);
+          request['onsuccess'] = function (event) {
+            if (event['target']['result']) {
+              var result = event['target']['result'],
+                byteLen = result['byteLength'] || result['length'],
+                ptr = _malloc(byteLen);
+              HEAPU8['set'](new Uint8Array(result), ptr), HEAPU32[fetch + 0xc >> 0x2] = ptr, Fetch['setu64'](fetch + 0x10, byteLen), Fetch['setu64'](fetch + 0x18, 0x0), Fetch['setu64'](fetch + 0x20, byteLen), HEAPU16[fetch + 0x28 >> 0x1] = 0x4, HEAPU16[fetch + 0x2a >> 0x1] = 0xc8, stringToUTF8('OK', fetch + 0x2c, 0x40), onSuccess(fetch, 0x0, result);
+            } else HEAPU16[fetch + 0x28 >> 0x1] = 0x4, HEAPU16[fetch + 0x2a >> 0x1] = 0x194, stringToUTF8('未找到', fetch + 0x2c, 0x40), onError(fetch, 0x0, 'no data');
+          }, request['onerror'] = function (e) {
+            HEAPU16[fetch + 0x28 >> 0x1] = 0x4, HEAPU16[fetch + 0x2a >> 0x1] = 0x194, stringToUTF8('未找到', fetch + 0x2c, 0x40), onError(fetch, 0x0, e);
           };
-        } catch (_0x582a51) {
-          _0x25326c(_0x504f6d, 0x0, _0x582a51);
+        } catch (e) {
+          onError(fetch, 0x0, e);
         }
       }
 
-      function __emscripten_fetch_delete_cached_data(_0xa33238, _0x2b3c1b, _0x36bd55, _0x48efc4) {
-        if (!_0xa33238) {
-          _0x48efc4(_0x2b3c1b, 0x0, 'IndexedDB 不可用！');
+      function __emscripten_fetch_delete_cached_data(db, fetch, onSuccess, onError) {
+        if (!db) {
+          onError(fetch, 0x0, 'IndexedDB 不可用！');
           return;
         }
-        var _0x307c54 = _0x2b3c1b + 0x70,
-          _0x490400 = HEAPU32[_0x307c54 + 0x40 >> 0x2];
-        if (!_0x490400) _0x490400 = HEAPU32[_0x2b3c1b + 0x8 >> 0x2];
-        var _0xa4e2fc = UTF8ToString(_0x490400);
+        var requestStruct = fetch + 0x70,
+          urlPtr = HEAPU32[requestStruct + 0x40 >> 0x2];
+        if (!urlPtr) urlPtr = HEAPU32[fetch + 0x8 >> 0x2];
+        var urlStr = UTF8ToString(urlPtr);
         try {
-          var _0x91dbeb = _0xa33238['transaction'](['FILES'], 'readwrite'),
-            _0x100ebd = _0x91dbeb['objectStore']('FILES'),
-            _0x2dcc72 = _0x100ebd['delete'](_0xa4e2fc);
-          _0x2dcc72['onsuccess'] = function (_0x3d1745) {
-            var _0x2e4bcb = _0x16a3ce,
-              _0x5151dc = _0x3d1745['target']['result'];
-            HEAPU32[_0x2b3c1b + 0xc >> 0x2] = 0x0, Fetch['setu64'](_0x2b3c1b + 0x10, 0x0), Fetch['setu64'](_0x2b3c1b + 0x18, 0x0), Fetch['setu64'](_0x2b3c1b + 0x20, 0x0), HEAPU16[_0x2b3c1b + 0x28 >> 0x1] = 0x4, HEAPU16[_0x2b3c1b + 0x2a >> 0x1] = 0xc8, stringToUTF8('OK', _0x2b3c1b + 0x2c, 0x40), _0x36bd55(_0x2b3c1b, 0x0, _0x5151dc);
-          }, _0x2dcc72['onerror'] = function (_0x579b62) {
-            HEAPU16[_0x2b3c1b + 0x28 >> 0x1] = 0x4, HEAPU16[_0x2b3c1b + 0x2a >> 0x1] = 0x194, stringToUTF8('未找到', _0x2b3c1b + 0x2c, 0x40), _0x48efc4(_0x2b3c1b, 0x0, _0x579b62);
+          var transaction = db['transaction'](['FILES'], 'readwrite'),
+            store = transaction['objectStore']('FILES'),
+            request = store['delete'](urlStr);
+          request['onsuccess'] = function (event) {
+            result = event['target']['result'];
+            HEAPU32[fetch + 0xc >> 0x2] = 0x0, Fetch['setu64'](fetch + 0x10, 0x0), Fetch['setu64'](fetch + 0x18, 0x0), Fetch['setu64'](fetch + 0x20, 0x0), HEAPU16[fetch + 0x28 >> 0x1] = 0x4, HEAPU16[fetch + 0x2a >> 0x1] = 0xc8, stringToUTF8('OK', fetch + 0x2c, 0x40), onSuccess(fetch, 0x0, result);
+          }, request['onerror'] = function (event) {
+            HEAPU16[fetch + 0x28 >> 0x1] = 0x4, HEAPU16[fetch + 0x2a >> 0x1] = 0x194, stringToUTF8('未找到', fetch + 0x2c, 0x40), onError(fetch, 0x0, event);
           };
-        } catch (_0x48c446) {
-          _0x48efc4(_0x2b3c1b, 0x0, _0x48c446);
+        } catch (e) {
+          onError(fetch, 0x0, e);
         }
       }
       var FETCH_WORKER_QUEUE_PTR = 0x6de0;
@@ -1055,154 +1035,153 @@ var CNTVModule = function () {
         printError('缺少函数：emscripten_is_main_runtime_thread'), abort(-0x1);
       }
 
-      function _emscripten_start_fetch(_0x7f9c1d, _0x541a0d, _0x3753ab, _0x16ac34, _0x1dfe9f) {
+      function _emscripten_start_fetch(fetchPtr, onSuccess, onError, onProgress, onReadyState) {
         if (typeof module !== 'undefined') module['noExitRuntime'] = !![];
-        var _0x5003f2 = _0x7f9c1d + 0x70,
-          _0x419057 = UTF8ToString(_0x5003f2),
-          _0x101a87 = HEAPU32[_0x5003f2 + 0x24 >> 0x2],
-          _0x2cbff1 = HEAPU32[_0x5003f2 + 0x28 >> 0x2],
-          _0x2486f0 = HEAPU32[_0x5003f2 + 0x2c >> 0x2],
-          _0x593614 = HEAPU32[_0x5003f2 + 0x30 >> 0x2],
-          _0x11e44a = HEAPU32[_0x5003f2 + 0x34 >> 0x2],
-          _0x54876f = !!(_0x11e44a & 0x1),
-          _0x54fa32 = !!(_0x11e44a & 0x2),
-          _0x3b4e53 = !!(_0x11e44a & 0x4),
-          _0x4262f0 = !!(_0x11e44a & 0x20),
-          _0x9ff132 = !!(_0x11e44a & 0x8),
-          _0x4c4d65 = !!(_0x11e44a & 0x10),
-          _0x4256e2 = function (_0x5a7990, _0x24cf88, _0x5497cb) {
-            if (_0x101a87) dynCall_vi(_0x101a87, _0x5a7990);
+        var requestStruct = fetchPtr + 0x70,
+          requestType = UTF8ToString(requestStruct),
+          successCallback = HEAPU32[requestStruct + 0x24 >> 0x2],
+          progressCallback = HEAPU32[requestStruct + 0x28 >> 0x2],
+          errorCallback = HEAPU32[requestStruct + 0x2c >> 0x2],
+          readyStateCallback = HEAPU32[requestStruct + 0x30 >> 0x2],
+          fetchAttributes = HEAPU32[requestStruct + 0x34 >> 0x2],
+          loadToMemory = !!(fetchAttributes & 0x1),
+          streamData = !!(fetchAttributes & 0x2),
+          persistFile = !!(fetchAttributes & 0x4),
+          noDownload = !!(fetchAttributes & 0x20),
+          isViaIDB = !!(fetchAttributes & 0x8),
+          syncXHR = !!(fetchAttributes & 0x10),
+          fetchOnSuccess = function (fetch, _xhr, _event) {
+            if (successCallback) dynCall_vi(successCallback, fetch);
             else {
-              if (_0x541a0d) _0x541a0d(_0x5a7990);
+              if (onSuccess) onSuccess(fetch);
             }
           },
-          _0x4fb094 = function (_0x50f7ae, _0x19b024, _0x1e1c59) {
-            if (_0x2486f0) dynCall_vi(_0x2486f0, _0x50f7ae);
+          fetchOnProgress = function (fetch, _xhr, _event) {
+            if (errorCallback) dynCall_vi(errorCallback, fetch);
             else {
-              if (_0x16ac34) _0x16ac34(_0x50f7ae);
+              if (onProgress) onProgress(fetch);
             }
           },
-          _0x390e7f = function (_0x5e79fc, _0x75bee5, _0x3781e9) {
-            if (_0x2cbff1) dynCall_vi(_0x2cbff1, _0x5e79fc);
+          fetchOnError = function (fetch, _xhr, _event) {
+            if (progressCallback) dynCall_vi(progressCallback, fetch);
             else {
-              if (_0x3753ab) _0x3753ab(_0x5e79fc);
+              if (onError) onError(fetch);
             }
           },
-          _0x3105 = function (_0x2c6399, _0x83de2b, _0x36f5bc) {
-            if (_0x593614) dynCall_vi(_0x593614, _0x2c6399);
+          fetchOnReadyState = function (fetch, _xhr, _event) {
+            if (readyStateCallback) dynCall_vi(readyStateCallback, fetch);
             else {
-              if (_0x1dfe9f) _0x1dfe9f(_0x2c6399);
+              if (onReadyState) onReadyState(fetch);
             }
           },
-          _0x1df72b = function (_0x224ff9, _0x4f631c, _0x414d14) {
-            __emscripten_fetch_xhr(_0x224ff9, _0x4256e2, _0x390e7f, _0x4fb094, _0x3105);
+          doXHR = function (fetch, _xhr, _event) {
+            __emscripten_fetch_xhr(fetch, fetchOnSuccess, fetchOnError, fetchOnProgress, fetchOnReadyState);
           },
-          _0xa354cc = function (_0x10de8c, _0x4c69a9, _0x4c3fac) {
-            var _0x471e6e = _0x2e1743,
-              _0x5f2fcb = function (_0x8a7243, _0x557e2b, _0x4319a5) {
-                if (_0x101a87) dynCall_vi(_0x101a87, _0x8a7243);
+          onXHRSuccess = function (fetch, xhr, event) {
+            onXHRSuccessInner = function (fetch, _xhr, _event) {
+                if (successCallback) dynCall_vi(successCallback, fetch);
                 else {
-                  if (_0x541a0d) _0x541a0d(_0x8a7243);
+                  if (onSuccess) onSuccess(fetch);
                 }
               },
-              _0x248851 = function (_0x173b2c, _0x15d256, _0x5c225d) {
-                if (_0x101a87) dynCall_vi(_0x101a87, _0x173b2c);
+              onXHRSuccessInner2 = function (fetch, _xhr, _event) {
+                if (successCallback) dynCall_vi(successCallback, fetch);
                 else {
-                  if (_0x541a0d) _0x541a0d(_0x173b2c);
+                  if (onSuccess) onSuccess(fetch);
                 }
               };
-            __emscripten_fetch_cache_data(Fetch['dbInstance'], _0x10de8c, _0x4c69a9['response'], _0x5f2fcb, _0x248851);
+            __emscripten_fetch_cache_data(Fetch['dbInstance'], fetch, xhr['response'], onXHRSuccessInner, onXHRSuccessInner2);
           },
-          _0x2708a5 = function (_0x11021e, _0x572caf, _0x1de392) {
-            __emscripten_fetch_xhr(_0x11021e, _0xa354cc, _0x390e7f, _0x4fb094, _0x3105);
+          doXHRAndStore = function (fetch, _xhr, _event) {
+            __emscripten_fetch_xhr(fetch, onXHRSuccess, fetchOnError, fetchOnProgress, fetchOnReadyState);
           },
-          _0x52f590 = !_0x4c4d65 || _0x419057 === 'EM_IDB_STORE' || _0x419057 === 'EM_IDB_DELETE';
-        if (_0x52f590 && !Fetch['dbInstance']) return _0x390e7f(_0x7f9c1d, 0x0, 'IndexedDB 未打开'), 0x0;
-        if (_0x419057 === 'EM_IDB_STORE') {
-          var _0xade042 = HEAPU32[_0x5003f2 + 0x54 >> 0x2];
-          __emscripten_fetch_cache_data(Fetch['dbInstance'], _0x7f9c1d, HEAPU8['slice'](_0xade042, _0xade042 + HEAPU32[_0x5003f2 + 0x58 >> 0x2]), _0x4256e2, _0x390e7f);
+          needsDB = !syncXHR || requestType === 'EM_IDB_STORE' || requestType === 'EM_IDB_DELETE';
+        if (needsDB && !Fetch['dbInstance']) return fetchOnError(fetchPtr, 0x0, 'IndexedDB 未打开'), 0x0;
+        if (requestType === 'EM_IDB_STORE') {
+          var dataPtr = HEAPU32[requestStruct + 0x54 >> 0x2];
+          __emscripten_fetch_cache_data(Fetch['dbInstance'], fetchPtr, HEAPU8['slice'](dataPtr, dataPtr + HEAPU32[requestStruct + 0x58 >> 0x2]), fetchOnSuccess, fetchOnError);
         } else {
-          if (_0x419057 === 'EM_IDB_DELETE') __emscripten_fetch_delete_cached_data(Fetch['dbInstance'], _0x7f9c1d, _0x4256e2, _0x390e7f);
+          if (requestType === 'EM_IDB_DELETE') __emscripten_fetch_delete_cached_data(Fetch['dbInstance'], fetchPtr, fetchOnSuccess, fetchOnError);
           else {
-            if (!_0x4c4d65) __emscripten_fetch_load_cached_data(Fetch['dbInstance'], _0x7f9c1d, _0x4256e2, _0x4262f0 ? _0x390e7f : _0x3b4e53 ? _0x2708a5 : _0x1df72b);
+            if (!syncXHR) __emscripten_fetch_load_cached_data(Fetch['dbInstance'], fetchPtr, fetchOnSuccess, noDownload ? fetchOnError : persistFile ? doXHRAndStore : doXHR);
             else {
-              if (!_0x4262f0) __emscripten_fetch_xhr(_0x7f9c1d, _0x3b4e53 ? _0xa354cc : _0x4256e2, _0x390e7f, _0x4fb094, _0x3105);
+              if (!noDownload) __emscripten_fetch_xhr(fetchPtr, persistFile ? onXHRSuccess : fetchOnSuccess, fetchOnError, fetchOnProgress, fetchOnReadyState);
               else return 0x0;
             }
           }
         }
-        return _0x7f9c1d;
+        return fetchPtr;
       }
 
-      function _emscripten_memcpy_big(_0x911016, _0x406a3d, _0x21c654) {
-        HEAPU8['set'](HEAPU8['subarray'](_0x406a3d, _0x406a3d + _0x21c654), _0x911016);
+      function _emscripten_memcpy_big(dest, src, num) {
+        HEAPU8['set'](HEAPU8['subarray'](src, src + num), dest);
       }
 
-      function ___setErrNo(_0x43ee1a) {
-        if (module['___errno_location']) HEAP32[module['___errno_location']() >> 0x2] = _0x43ee1a;
-        return _0x43ee1a;
+      function ___setErrNo(value) {
+        if (module['___errno_location']) HEAP32[module['___errno_location']() >> 0x2] = value;
+        return value;
       }
 
       // 内存无法增长时终止程序
-      function abortOnCannotGrowMemory(_0x21c2a1) {
+      function abortOnCannotGrowMemory(requestedSize) {
         abort('内存不足');
       }
 
-      function emscripten_realloc_buffer(_0x26defa) {
-        var _0x4106d7 = 0x10000;
-        _0x26defa = alignUp(_0x26defa, _0x4106d7);
-        var _0x8d6e7a = wasmBuffer['byteLength'];
+      function emscripten_realloc_buffer(requestedSize) {
+        var pageSize = 0x10000;
+        requestedSize = alignUp(requestedSize, pageSize);
+        var oldSize = wasmBuffer['byteLength'];
         try {
-          var _0x26efdc = wasmMemory['grow']((_0x26defa - _0x8d6e7a) / 0x10000);
-          return _0x26efdc !== (-0x1 | 0x0) ? (wasmBuffer = wasmMemory['buffer'], !![]) : ![];
-        } catch (_0x9bf678) {
+          var result = wasmMemory['grow']((requestedSize - oldSize) / 0x10000);
+          return result !== (-0x1 | 0x0) ? (wasmBuffer = wasmMemory['buffer'], !![]) : ![];
+        } catch (e) {
           return ![];
         }
       }
 
       // 调整 WASM 堆内存大小
-      function _emscripten_resize_heap(_0x289cb7) {
-        var _0x30fc75 = getHeapSize(),
-          _0x215952 = 0x10000,
-          _0x166ac1 = 0x80000000 - _0x215952;
-        if (_0x289cb7 > _0x166ac1) return ![];
-        var _0x5360ea = 0x1000000,
-          _0x17d2ff = Math['max'](_0x30fc75, _0x5360ea);
-        while (_0x17d2ff < _0x289cb7) {
-          _0x17d2ff <= 0x20000000 ? _0x17d2ff = alignUp(0x2 * _0x17d2ff, _0x215952) : _0x17d2ff = Math['min'](alignUp((0x3 * _0x17d2ff + 0x80000000) / 0x4, _0x215952), _0x166ac1);
+      function _emscripten_resize_heap(requestedSize) {
+        var currentSize = getHeapSize(),
+          pageSize = 0x10000,
+          maxHeap = 0x80000000 - pageSize;
+        if (requestedSize > maxHeap) return ![];
+        var minHeap = 0x1000000,
+          newSize = Math['max'](currentSize, minHeap);
+        while (newSize < requestedSize) {
+          newSize <= 0x20000000 ? newSize = alignUp(0x2 * newSize, pageSize) : newSize = Math['min'](alignUp((0x3 * newSize + 0x80000000) / 0x4, pageSize), maxHeap);
         }
-        if (!emscripten_realloc_buffer(_0x17d2ff)) return ![];
+        if (!emscripten_realloc_buffer(newSize)) return ![];
         return updateHeapViews(), !![];
       }
       Fetch['staticInit']();
       var noExitRuntime = ![];
 
-      function jsCall_ii(_0x1ee12f, _0x586c77) {
-        return FUNCTION_TABLE[_0x1ee12f](_0x586c77);
+      function jsCall_ii(idx, a1) {
+        return FUNCTION_TABLE[idx](a1);
       }
 
-      function jsCall_iidiiii(_0x57a431, _0xe84509, _0x15b691, _0x4d2477, _0x5e5e81, _0x4ef7ae, _0x1c9d64) {
-        return FUNCTION_TABLE[_0x57a431](_0xe84509, _0x15b691, _0x4d2477, _0x5e5e81, _0x4ef7ae, _0x1c9d64);
+      function jsCall_iidiiii(idx, a1, a2, a3, a4, a5, a6) {
+        return FUNCTION_TABLE[idx](a1, a2, a3, a4, a5, a6);
       }
 
-      function jsCall_iiii(_0x4e0fd0, _0x3e885a, _0xe16a89, _0x22e6a4) {
-        return FUNCTION_TABLE[_0x4e0fd0](_0x3e885a, _0xe16a89, _0x22e6a4);
+      function jsCall_iiii(idx, a1, a2, a3) {
+        return FUNCTION_TABLE[idx](a1, a2, a3);
       }
 
-      function jsCall_jiji(_0x505346, _0x30e45d, _0x254257, _0xcbba3) {
-        return FUNCTION_TABLE[_0x505346](_0x30e45d, _0x254257, _0xcbba3);
+      function jsCall_jiji(idx, a1, a2, a3) {
+        return FUNCTION_TABLE[idx](a1, a2, a3);
       }
 
-      function jsCall_v(_0x3f1d85) {
-        FUNCTION_TABLE[_0x3f1d85]();
+      function jsCall_v(idx) {
+        FUNCTION_TABLE[idx]();
       }
 
-      function jsCall_vi(_0x2018dc, _0x1033c7) {
-        FUNCTION_TABLE[_0x2018dc](_0x1033c7);
+      function jsCall_vi(idx, a1) {
+        FUNCTION_TABLE[idx](a1);
       }
 
-      function jsCall_vii(_0x127d33, _0x242d2e, _0x15f55b) {
-        FUNCTION_TABLE[_0x127d33](_0x242d2e, _0x15f55b);
+      function jsCall_vii(idx, a1, a2) {
+        FUNCTION_TABLE[idx](a1, a2);
       }
       var wasmInfo = {},
         wasmEnv = {
@@ -1327,34 +1306,34 @@ var CNTVModule = function () {
         };
       module['asm'] = asmExports, module['addFunction'] = addFunction;
       var wasmReady;
-      module['then'] = function (_0x5023e0) {
-        if (wasmReady) _0x5023e0(module);
+      module['then'] = function (callback) {
+        if (wasmReady) callback(module);
         else {
-          var _0x4a35fa = module['onRuntimeInitialized'];
+          var oldHandler = module['onRuntimeInitialized'];
           module['onRuntimeInitialized'] = function () {
-            if (_0x4a35fa) _0x4a35fa();
-            _0x5023e0(module);
+            if (oldHandler) oldHandler();
+            callback(module);
           };
         }
         return module;
       };
 
-      function ExitStatus(_0x2c9269) {
-        this['name'] = 'ExitStatus', this['message'] = 'Program terminated with exit(' + _0x2c9269 + ')', this['status'] = _0x2c9269;
+      function ExitStatus(status) {
+        this['name'] = 'ExitStatus', this['message'] = 'Program terminated with exit(' + status + ')', this['status'] = status;
       }
-      dependenciesFulfilled = function _0x495fbe() {
+      dependenciesFulfilled = function checkDependencies() {
         if (!wasmReady) run();
-        if (!wasmReady) dependenciesFulfilled = _0x495fbe;
+        if (!wasmReady) dependenciesFulfilled = checkDependencies;
       };
 
       // 主入口：执行预运行钩子，然后启动 WASM 程序
-      function run(_0x47141e) {
-        _0x47141e = _0x47141e || argv;
+      function run(args) {
+        args = args || argv;
         if (runDependencies > 0x0) return;
         preRun();
         if (runDependencies > 0x0) return;
 
-        function _0x3a994a() {
+        function doRun() {
           if (wasmReady) return;
           wasmReady = !![];
           if (calledAbort) return;
@@ -1365,16 +1344,16 @@ var CNTVModule = function () {
         module['setStatus'] ? (module['setStatus']('运行中...'), setTimeout(function () {
           setTimeout(function () {
             module['setStatus']('');
-          }, 0x1), _0x3a994a();
-        }, 0x1)) : _0x3a994a();
+          }, 0x1), doRun();
+        }, 0x1)) : doRun();
       }
       module['run'] = run;
 
       // 终止运行：输出错误信息并抛出异常
-      function abort(_0x2a65c0) {
-        module['onAbort'] && module['onAbort'](_0x2a65c0);
-        _0x2a65c0 += '', printOutput(_0x2a65c0), printError(_0x2a65c0), calledAbort = !![], exitCode = 0x1;
-        throw 'abort(' + _0x2a65c0 + '). Build with -s ASSERTIONS=1 for more info.';
+      function abort(what) {
+        module['onAbort'] && module['onAbort'](what);
+        what += '', printOutput(what), printError(what), calledAbort = !![], exitCode = 0x1;
+        throw '程序中止(' + what + ')。请使用 -s ASSERTIONS=1 编译以获取更多信息。';
       }
       module['abort'] = abort;
       if (module['preInit']) {
@@ -1396,7 +1375,6 @@ else {
   }
 }
 var LiveAudio2 = function (audioElement) {
-  var _noop = noopFn;
   'use strict';
   var loudspeakerAudioChainUnused = {},
     headsetAudioChain = {},
@@ -1404,16 +1382,16 @@ var LiveAudio2 = function (audioElement) {
     gainSettings = {},
     isCrossAudio = !![],
     audioContext, sourceNode, getBrowserInfo = function () {
-      var _0x4261a4 = new Object();
-      return _0x4261a4['isMozilla'] = typeof document['implementation'] != 'undefined' && typeof document['implementation']['createDocument'] != 'undefined' && typeof HTMLDocument != 'undefined', _0x4261a4['isIE'] = window['ActiveXObject'] ? !![] : ![], _0x4261a4['isFirefox'] = navigator['userAgent']['toLowerCase']()['indexOf']('firefox') != -0x1, _0x4261a4['isSafari'] = navigator['userAgent']['toLowerCase']()['indexOf']('safari') != -0x1 && navigator['userAgent']['toLowerCase']()['indexOf']('chrome') == -0x1, _0x4261a4['isOpera'] = navigator['userAgent']['toLowerCase']()['indexOf']('opera') != -0x1, _0x4261a4['isMicromessenger'] = navigator['userAgent']['toLowerCase']()['indexOf']('micromessenger') != -0x1, _0x4261a4['isChrome'] = navigator['userAgent']['toLowerCase']()['indexOf']('chrome') != -0x1, console['log'](navigator['userAgent']), _0x4261a4;
+      var browserInfo = new Object();
+      return browserInfo['isMozilla'] = typeof document['implementation'] != 'undefined' && typeof document['implementation']['createDocument'] != 'undefined' && typeof HTMLDocument != 'undefined', browserInfo['isIE'] = window['ActiveXObject'] ? !![] : ![], browserInfo['isFirefox'] = navigator['userAgent']['toLowerCase']()['indexOf']('firefox') != -0x1, browserInfo['isSafari'] = navigator['userAgent']['toLowerCase']()['indexOf']('safari') != -0x1 && navigator['userAgent']['toLowerCase']()['indexOf']('chrome') == -0x1, browserInfo['isOpera'] = navigator['userAgent']['toLowerCase']()['indexOf']('opera') != -0x1, browserInfo['isMicromessenger'] = navigator['userAgent']['toLowerCase']()['indexOf']('micromessenger') != -0x1, browserInfo['isChrome'] = navigator['userAgent']['toLowerCase']()['indexOf']('chrome') != -0x1, console['log'](navigator['userAgent']), browserInfo;
     },
-    initAudioContext = function (_0x4f499e) {
+    initAudioContext = function (audioElement) {
       if (audioContext) return;
       try {
         var browserInfo = getBrowserInfo();
-        browserInfo['isFirefox'] ? (console['log']('是 Firefox 浏览器'), gainSettings['louderSpeakerGain'] = 0x1, gainSettings['headSetGain'] = 1.5) : (gainSettings['louderSpeakerGain'] = 1.8, gainSettings['headSetGain'] = 0x2), audioContext = new(window[('AudioContext')] || window[('webkitAudioContext')])(), sourceNode = audioContext['createMediaElementSource'](_0x4f499e), sourceNode['connect'](audioContext['destination']);
-      } catch (_0x301639) {
-        console['log'](_0x301639);
+        browserInfo['isFirefox'] ? (console['log']('是 Firefox 浏览器'), gainSettings['louderSpeakerGain'] = 0x1, gainSettings['headSetGain'] = 1.5) : (gainSettings['louderSpeakerGain'] = 1.8, gainSettings['headSetGain'] = 0x2), audioContext = new(window[('AudioContext')] || window[('webkitAudioContext')])(), sourceNode = audioContext['createMediaElementSource'](audioElement), sourceNode['connect'](audioContext['destination']);
+      } catch (e) {
+        console['log'](e);
       }
       return;
     };
@@ -1425,8 +1403,8 @@ var LiveAudio2 = function (audioElement) {
         return;
       }
       loudspeakerAudioChain['masterEnd'] = audioContext['createGain'](), loudspeakerAudioChain['masterFirst'] = audioContext['createGain'](), loudspeakerAudioChain['masterFirst']['connect'](loudspeakerAudioChain['masterEnd']), buildLoudspeakerPath(loudspeakerAudioChain['masterFirst'], loudspeakerAudioChain['masterEnd']), buildLoudspeakerPathWithSwappedChannels(loudspeakerAudioChain['masterFirst'], loudspeakerAudioChain['masterEnd']), sourceNode['connect'](loudspeakerAudioChain['masterFirst']), loudspeakerAudioChain['masterEnd']['connect'](audioContext['destination']);
-    } catch (_0x2c7b6a) {
-      console['log'](_0x2c7b6a);
+    } catch (e) {
+      console['log'](e);
     }
   }, this['connectDestHeadset'] = function () {
     try {
@@ -1435,134 +1413,126 @@ var LiveAudio2 = function (audioElement) {
         sourceNode['connect'](headsetAudioChain['masterFirst']), headsetAudioChain['masterEnd']['connect'](audioContext['destination']);
         return;
       }
-      var _0x1f57ed = audioContext['createGain'](),
-        _0x208fcf = audioContext['createGain'](),
-        _0x4a2426 = audioContext['createGain'](),
-        _0x1df5bf = audioContext['createGain'](),
-        _0xc20c3 = audioContext['createGain'](),
-        _0x4e3fa5 = audioContext['createGain']();
-      headsetAudioChain['masterFirst'] = _0x1f57ed, headsetAudioChain['masterEnd'] = _0x4e3fa5, sourceNode['connect'](_0x1f57ed), _0x1df5bf['gain']['value'] = 0.4, _0x208fcf['gain']['value'] = 0.4, _0x1f57ed['connect'](_0x208fcf), buildHeadsetPathWithMonoConvolver(_0x208fcf, _0x4a2426), _0x4a2426['connect'](_0x4e3fa5), _0x1f57ed['connect'](_0x1df5bf), buildHeadsetPathWithStereoConvolver(_0x1df5bf, _0xc20c3), _0xc20c3['connect'](_0x4e3fa5), _0x4e3fa5['connect'](audioContext['destination']);
-    } catch (_0x3fce1b) {
-      console['log'](_0x3fce1b);
+      var masterFirstGain = audioContext['createGain'](),
+        wetGain = audioContext['createGain'](),
+        postConvolverGain = audioContext['createGain'](),
+        dryGain = audioContext['createGain'](),
+        postDryConvolverGain = audioContext['createGain'](),
+        masterEndGain = audioContext['createGain']();
+      headsetAudioChain['masterFirst'] = masterFirstGain, headsetAudioChain['masterEnd'] = masterEndGain, sourceNode['connect'](masterFirstGain), dryGain['gain']['value'] = 0.4, wetGain['gain']['value'] = 0.4, masterFirstGain['connect'](wetGain), buildHeadsetPathWithMonoConvolver(wetGain, postConvolverGain), postConvolverGain['connect'](masterEndGain), masterFirstGain['connect'](dryGain), buildHeadsetPathWithStereoConvolver(dryGain, postDryConvolverGain), postDryConvolverGain['connect'](masterEndGain), masterEndGain['connect'](audioContext['destination']);
+    } catch (e) {
+      console['log'](e);
     }
   };
 
   // 构建耳机音频路径（立体声卷积混响）
-  function buildHeadsetPathWithStereoConvolver(_0x118793, _0x2c83bb) {
-    var _0x4d19e3 = audioContext['createGain'](),
-      _0x194cb9 = audioContext['createGain'](),
-      _0x7f1141 = audioContext['createGain'](),
-      _0x5f1724 = audioContext['createConvolver']();
-    _0x118793['connect'](_0x7f1141);
-    var _0x15d8de = audioContext['createChannelSplitter'](0x2),
-      _0x1d20d2 = audioContext['createChannelMerger'](0x2);
-    _0x118793['connect'](_0x15d8de), _0x15d8de['connect'](_0x4d19e3, 0x0), _0x15d8de['connect'](_0x194cb9, 0x1), _0x4d19e3['connect'](_0x1d20d2, 0x0, 0x1), _0x194cb9['connect'](_0x1d20d2, 0x0, 0x0), _0x1d20d2['connect'](_0x2c83bb);
+  function buildHeadsetPathWithStereoConvolver(inputNode, outputNode) {
+    var leftGain = audioContext['createGain'](),
+      rightGain = audioContext['createGain'](),
+      gainNode = audioContext['createGain'](),
+      convolver = audioContext['createConvolver']();
+    inputNode['connect'](gainNode);
+    var splitter = audioContext['createChannelSplitter'](0x2),
+      merger = audioContext['createChannelMerger'](0x2);
+    inputNode['connect'](splitter), splitter['connect'](leftGain, 0x0), splitter['connect'](rightGain, 0x1), leftGain['connect'](merger, 0x0, 0x1), rightGain['connect'](merger, 0x0, 0x0), merger['connect'](outputNode);
     try {
-      var _0x5a4997 = getDecryptedAudioBuffer();
-      audioContext['decodeAudioData'](_0x5a4997, function (_0x598d54) {
-        var _0x2629ac = _0x57cc1d;
-        _0x5f1724['buffer'] = _0x598d54;
-        var _0x28a77e = _0x598d54['getChannelData'](0x0),
-          _0x56c688 = _0x598d54['getChannelData'](0x1);
-        for (var _0x7964ee = 0x0; _0x7964ee < _0x28a77e['length']; _0x7964ee++) {
-          _0x28a77e[_0x7964ee] = _0x56c688[_0x7964ee];
+      var audioData = getDecryptedAudioBuffer();
+      audioContext['decodeAudioData'](audioData, function (buffer) {
+        convolver['buffer'] = buffer;
+        var leftChannel = buffer['getChannelData'](0x0),
+          rightChannel = buffer['getChannelData'](0x1);
+        for (var i = 0x0; i < leftChannel['length']; i++) {
+          leftChannel[i] = rightChannel[i];
         }
-        _0x5f1724['loop'] = ![], _0x5f1724['normalize'] = !![], _0x7f1141['gain']['value'] = gainSettings['headSetGain'], _0x7f1141['connect'](_0x5f1724), _0x5f1724['connect'](_0x2c83bb);
-      }, function (_0x1924bf) {
-        var _0x57a02f = _0x57cc1d;
-        '解码音频数据时出错' + _0x1924bf['err'];
+        convolver['loop'] = ![], convolver['normalize'] = !![], gainNode['gain']['value'] = gainSettings['headSetGain'], gainNode['connect'](convolver), convolver['connect'](outputNode);
+      }, function (err) {
+        console.warn('解码音频数据时出错', err['err']);
       });
-    } catch (_0x3d345a) {
-      console['log'](_0x3d345a);
+    } catch (e) {
+      console['log'](e);
     }
   }
 
   // 构建耳机音频路径（单声道卷积混响）
-  function buildHeadsetPathWithMonoConvolver(_0x3f93d5, _0x8fa9ef) {
-    var _0x3e15fb = audioContext['createGain'](),
-      _0x17b3a9 = audioContext['createGain'](),
-      _0x13d916 = audioContext['createConvolver']();
-    _0x3f93d5['connect'](_0x17b3a9), _0x3f93d5['connect'](_0x3e15fb), _0x3e15fb['connect'](_0x8fa9ef);
+  function buildHeadsetPathWithMonoConvolver(inputNode, outputNode) {
+    var dryGain = audioContext['createGain'](),
+      wetGain = audioContext['createGain'](),
+      convolver = audioContext['createConvolver']();
+    inputNode['connect'](wetGain), inputNode['connect'](dryGain), dryGain['connect'](outputNode);
     try {
-      var _0x2ab47d = getDecryptedAudioBuffer();
-      audioContext['decodeAudioData'](_0x2ab47d, function (_0x33c095) {
-        var _0xe4fa5e = _0x4c6424;
-        _0x13d916['buffer'] = _0x33c095;
-        var _0x1f59e2 = _0x33c095['getChannelData'](0x0),
-          _0x160a03 = _0x33c095['getChannelData'](0x1);
-        for (var _0x2b7048 = 0x0; _0x2b7048 < _0x1f59e2['length']; _0x2b7048++) {
-          _0x160a03[_0x2b7048] = _0x1f59e2[_0x2b7048];
+      var audioData = getDecryptedAudioBuffer();
+      audioContext['decodeAudioData'](audioData, function (buffer) {
+        convolver['buffer'] = buffer;
+        var leftChannel = buffer['getChannelData'](0x0),
+          rightChannel = buffer['getChannelData'](0x1);
+        for (var i = 0x0; i < leftChannel['length']; i++) {
+          rightChannel[i] = leftChannel[i];
         }
-        _0x13d916['loop'] = ![], _0x13d916['normalize'] = !![], _0x17b3a9['gain']['value'] = gainSettings['headSetGain'], _0x17b3a9['connect'](_0x13d916), _0x13d916['connect'](_0x8fa9ef);
-      }, function (_0x56b88a) {
-        var _0x5e6953 = _0x4c6424;
-        '解码音频数据时出错' + _0x56b88a['err'];
+        convolver['loop'] = ![], convolver['normalize'] = !![], wetGain['gain']['value'] = gainSettings['headSetGain'], wetGain['connect'](convolver), convolver['connect'](outputNode);
+      }, function (err) {
+        console.warn('解码音频数据时出错', err['err']);
       });
-    } catch (_0x259996) {
-      console['log'](_0x259996);
+    } catch (e) {
+      console['log'](e);
     }
   }
 
   // 构建扬声器音频路径（带卷积混响）
-  function buildLoudspeakerPath(_0x5b05e7, _0x59f0dc) {
-    var _0x21c94f = audioContext['createGain'](),
-      _0x329936 = audioContext['createConvolver']();
-    _0x5b05e7['connect'](_0x21c94f);
+  function buildLoudspeakerPath(inputNode, outputNode) {
+    var gainNode = audioContext['createGain'](),
+      convolver = audioContext['createConvolver']();
+    inputNode['connect'](gainNode);
     try {
-      var _0x952e68 = getDecryptedAudioBuffer();
-      audioContext['decodeAudioData'](_0x952e68, function (_0x3e7cd3) {
-        var _0x216d77 = _0x3f6094;
-        _0x329936['buffer'] = _0x3e7cd3, _0x329936['loop'] = ![], _0x329936['normalize'] = !![], _0x21c94f['gain']['value'] = gainSettings['louderSpeakerGain'], _0x21c94f['connect'](_0x329936), _0x329936['connect'](_0x59f0dc);
-      }, function (_0x142c61) {
-        var _0xedfb30 = _0x3f6094;
-        '解码音频数据时出错' + _0x142c61['err'];
+      var audioData = getDecryptedAudioBuffer();
+      audioContext['decodeAudioData'](audioData, function (buffer) {
+        convolver['buffer'] = buffer, convolver['loop'] = ![], convolver['normalize'] = !![], gainNode['gain']['value'] = gainSettings['louderSpeakerGain'], gainNode['connect'](convolver), convolver['connect'](outputNode);
+      }, function (err) {
+        console.warn('解码音频数据时出错', err['err']);
       });
-    } catch (_0x5458e4) {
-      console['log'](_0x5458e4);
+    } catch (e) {
+      console['log'](e);
     }
   }
 
   // 构建扬声器音频路径（左右声道互换）
-  function buildLoudspeakerPathWithSwappedChannels(_0x357acd, _0x33192c) {
-    var _0x19eadc = audioContext['createGain'](),
-      _0x31f8cf = audioContext['createConvolver']();
-    _0x357acd['connect'](_0x19eadc);
+  function buildLoudspeakerPathWithSwappedChannels(inputNode, outputNode) {
+    var gainNode = audioContext['createGain'](),
+      convolver = audioContext['createConvolver']();
+    inputNode['connect'](gainNode);
     try {
-      var _0x521c38 = getDecryptedAudioBuffer();
-      audioContext['decodeAudioData'](_0x521c38, function (_0x3952f7) {
-        var _0x5c886c = _0xdb95f3,
-          _0xbfc5f3 = _0x3952f7['getChannelData'](0x0),
-          _0x5ecd81 = _0x3952f7['getChannelData'](0x1),
-          _0x22e034;
-        for (var _0x484dc5 = 0x0; _0x484dc5 < _0xbfc5f3['length']; _0x484dc5++) {
-          _0x22e034 = _0xbfc5f3[_0x484dc5], _0xbfc5f3[_0x484dc5] = _0x5ecd81[_0x484dc5], _0x5ecd81[_0x484dc5] = _0x22e034;
+      var audioData = getDecryptedAudioBuffer();
+      audioContext['decodeAudioData'](audioData, function (buffer) {
+        leftChannel = buffer['getChannelData'](0x0),
+          rightChannel = buffer['getChannelData'](0x1),
+          temp;
+        for (var i = 0x0; i < leftChannel['length']; i++) {
+          temp = leftChannel[i], leftChannel[i] = rightChannel[i], rightChannel[i] = temp;
         }
-        _0x31f8cf['buffer'] = _0x3952f7, _0x31f8cf['loop'] = ![], _0x31f8cf['normalize'] = !![], _0x19eadc['gain']['value'] = gainSettings['louderSpeakerGain'], _0x19eadc['connect'](_0x31f8cf), _0x31f8cf['connect'](_0x33192c);
-      }, function (_0x3e22d9) {
-        var _0x192174 = _0xdb95f3;
-        '解码音频数据时出错' + _0x3e22d9['err'];
+        convolver['buffer'] = buffer, convolver['loop'] = ![], convolver['normalize'] = !![], gainNode['gain']['value'] = gainSettings['louderSpeakerGain'], gainNode['connect'](convolver), convolver['connect'](outputNode);
+      }, function (err) {
+        console.warn('解码音频数据时出错', err['err']);
       });
-    } catch (_0xaa1ce4) {
-      console['log'](_0xaa1ce4);
+    } catch (e) {
+      console['log'](e);
     }
   }
 
   // 从 WASM 模块获取解密后的音频缓冲区
   function getDecryptedAudioBuffer() {
-    var _0x427fba = 0x249f0,
-      _0x1f97b5, _0x89ecb3;
+    var bufSize = 0x249f0,
+      bufPtr, decryptedSize;
     try {
-      _0x1f97b5 = CNTVH5PlayerModule['_jsmalloc'](_0x427fba + 0x80), _0x89ecb3 = CNTVH5PlayerModule['_GetDecryptAudio'](_0x1f97b5, _0x427fba);
-      let _0x5dba33 = new Uint8Array(_0x89ecb3);
-      for (let _0x55b115 = 0x0; _0x55b115 < _0x89ecb3; _0x55b115++) {
-        _0x5dba33[_0x55b115] = CNTVH5PlayerModule['HEAP8'][_0x1f97b5 + _0x55b115];
+      bufPtr = CNTVH5PlayerModule['_jsmalloc'](bufSize + 0x80), decryptedSize = CNTVH5PlayerModule['_GetDecryptAudio'](bufPtr, bufSize);
+      let byteArray = new Uint8Array(decryptedSize);
+      for (let i = 0x0; i < decryptedSize; i++) {
+        byteArray[i] = CNTVH5PlayerModule['HEAP8'][bufPtr + i];
       }
-      let _0x2cbb96 = _0x5dba33['buffer'];
-      return CNTVH5PlayerModule['_jsfree'](_0x2cbb96), _0x2cbb96;
-    } catch (_0x150e71) {
-      console['log']('ee:', _0x150e71);
+      let arrayBuffer = byteArray['buffer'];
+      return CNTVH5PlayerModule['_jsfree'](arrayBuffer), arrayBuffer;
+    } catch (e) {
+      console['log']('ee:', e);
     }
-    return CNTVH5PlayerModule['_jsfree'](_0x1f97b5), null;
+    return CNTVH5PlayerModule['_jsfree'](bufPtr), null;
   }
   var reconnect = function () {
     if (!sourceNode) return;
