@@ -387,6 +387,128 @@ function decodeWithWASM(mod, pesData, mediaId, channel = 0) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// § 6b  H.264 Annex B NAL 单元拆分 + 逐 NAL 解密
+//       对应原项目 liveplayer_controls.js 中：
+//         jD['parseNALu']  —— Annex B 起始码状态机，提取单个 NAL 单元
+//         fI['moduleDecData'] 调用链 —— 仅对 type=1/5 NAL 单元解密
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * 将 H.264 Annex B 格式载荷（含 00 00 00 01 / 00 00 01 起始码）
+ * 拆分为单个 NAL 单元。对应原项目 jD['parseNALu']。
+ *
+ * @param {Uint8Array} buf  PES 有效载荷（已去掉 PES 头）
+ * @returns {Array<{data:Uint8Array, type:number, sc4:boolean}>}
+ *   data  — NAL 单元数据（不含起始码），首字节为 nal_unit_type 字节
+ *   type  — nal_unit_type（低 5 位）
+ *   sc4   — true 表示原起始码为 4 字节（00 00 00 01），false 为 3 字节
+ */
+function parseAnnexBNALUnits(buf) {
+    const len  = buf.length;
+    const nals = [];
+    // 起始码状态机（与原项目 parseNALu 逻辑一致）
+    // state: 0=无匹配, 1=看到一个00, 2=看到两个00, 3=看到000
+    let state   = 0;
+    let nalStart = -1;    // 当前 NAL 数据起始偏移（含 type 字节，排除起始码）
+    let sc4      = false; // 当前 NAL 的起始码是否为 4 字节
+
+    for (let i = 0; i < len; i++) {
+        const b = buf[i];
+        if (state === 0) {
+            state = b === 0 ? 1 : 0;
+        } else if (state === 1) {
+            state = b === 0 ? 2 : 0;
+        } else if (state === 2) {
+            if (b === 0) {
+                state = 3; // 000...
+            } else if (b === 1) {
+                // 3 字节起始码 00 00 01，NAL 从 i+1 开始
+                if (nalStart >= 0) {
+                    // 结束前一个 NAL（去掉末尾可能多出的 00）
+                    let end = i - 2; // 起始码前两个 00
+                    while (end > nalStart && buf[end - 1] === 0) end--;
+                    nals.push({ data: buf.subarray(nalStart, end), type: buf[nalStart] & 0x1F, sc4: sc4 });
+                }
+                nalStart = i + 1;
+                sc4      = false;
+                state    = 0;
+            } else {
+                state = 0;
+            }
+        } else { // state === 3: 已有 000
+            if (b === 1) {
+                // 4 字节起始码 00 00 00 01，NAL 从 i+1 开始
+                if (nalStart >= 0) {
+                    let end = i - 3; // 起始码前三个 00
+                    while (end > nalStart && buf[end - 1] === 0) end--;
+                    nals.push({ data: buf.subarray(nalStart, end), type: buf[nalStart] & 0x1F, sc4: sc4 });
+                }
+                nalStart = i + 1;
+                sc4      = true;
+                state    = 0;
+            } else if (b === 0) {
+                state = 3; // 继续 000...
+            } else {
+                state = 0;
+            }
+        }
+    }
+    // 最后一个 NAL（文件末尾，没有后续起始码）
+    if (nalStart >= 0 && nalStart < len) {
+        nals.push({ data: buf.subarray(nalStart, len), type: buf[nalStart] & 0x1F, sc4: sc4 });
+    }
+    return nals;
+}
+
+/**
+ * 对 H.264 PES 有效载荷（Annex B 格式）执行逐 NAL 单元解密并重组。
+ *
+ * 对应原项目处理流程：
+ *   jD['parseNALu'](jF, jH['data'], jG)  ← 拆分 NAL 单元
+ *   for each jO in nals:
+ *     if (jO.type === 0x1 || jO.type === 0x5)
+ *       jO.data = fI['moduleDecData'](module, mediaTagId+'##'+pts, jO.data, fI.pad)
+ *
+ * @param {Object}     mod        已初始化的 CNTVModule 实例
+ * @param {Uint8Array} pesPayload PES 有效载荷（已去掉 PES 头，含 Annex B 起始码）
+ * @param {string}     mediaId    媒体标识串（对应 mediaTagId+'##'+pts）
+ * @param {number}     channel    解码通道（7=H.264 Live, 4=HEVC, 等）
+ * @returns {Buffer}  重组后的 Annex B 数据（各 NAL 均以 00 00 00 01 为前缀）
+ */
+function decodePESPayload(mod, pesPayload, mediaId, channel) {
+    const nals = parseAnnexBNALUnits(pesPayload);
+    if (nals.length === 0) {
+        // 无法解析 NAL 单元，原样返回（fallback）
+        return Buffer.from(pesPayload);
+    }
+
+    const parts = [];
+    const startCode4 = Buffer.from([0x00, 0x00, 0x00, 0x01]);
+
+    for (let i = 0; i < nals.length; i++) {
+        const nal = nals[i];
+        // 仅对编码帧（非参考帧=1、IDR帧=5）调用解码器，其余（SPS=7、PPS=8、SEI=6、AUD=9 等）原样保留
+        // 与原项目 case 0x1 / case 0x5 分支一致
+        if (nal.type === 0x1 || nal.type === 0x5) {
+            const result = decodeWithWASM(mod, nal.data, mediaId, channel);
+            if (result.decoded && result.decoded.length > 0) {
+                parts.push(startCode4);
+                parts.push(Buffer.from(result.decoded));
+            } else {
+                // 解码返回空：保留原始 NAL（不破坏流完整性）
+                parts.push(startCode4);
+                parts.push(Buffer.from(nal.data));
+            }
+        } else {
+            parts.push(startCode4);
+            parts.push(Buffer.from(nal.data));
+        }
+    }
+
+    return Buffer.concat(parts);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // § 7  测试数据生成：最小合法 TS 文件（无真实 .ts 文件时使用）
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -663,16 +785,17 @@ function buildDecodedTSFile(rawData, videoPids, mod, channel) {
             stats.inBytes += range.pesData.length;
 
             const mediaId = 'cntv-dec-' + range.pid + '##' + (range.pts || 0);
-            const result  = decodeWithWASM(mod, range.pesData, mediaId, channel);
+            // 调用逐 NAL 单元解密（对应原项目 parseNALu + moduleDecData 调用链）
+            const decodedPayload = decodePESPayload(mod, range.pesData, mediaId, channel);
 
-            if (result.decoded && result.decoded.length > 0) {
+            if (decodedPayload && decodedPayload.length > 0) {
                 stats.decoded++;
-                stats.outBytes += result.decoded.length;
+                stats.outBytes += decodedPayload.length;
                 const newPkts = repacketizeToTS(
-                    range.pid, 0xE0, range.pts, range.dts, result.decoded, ccMap);
+                    range.pid, 0xE0, range.pts, range.dts, decodedPayload, ccMap);
                 for (let pi = 0; pi < newPkts.length; pi++) outputChunks.push(newPkts[pi]);
             } else {
-                // Decode produced no output — fall back to copying original packets
+                // 解码返回空：原样保留原始包
                 stats.failed++;
                 for (let k = range.startIdx; k <= range.endIdx; k++) {
                     outputChunks.push(rawData.slice(allPackets[k].offset, allPackets[k].offset + 188));
@@ -878,22 +1001,20 @@ function main() {
             for (let fi2 = 0; fi2 < maxFrames; fi2++) {
                 const pesu    = videoPES[fi2];
                 const mediaId = 'cntv-verify-ch' + channel + '##' + (pesu.pts || 0);
-                const result  = decodeWithWASM(mod, pesu.data, mediaId, channel);
+                // 调用逐 NAL 单元解密（对应原项目 parseNALu + moduleDecData 调用链）
+                const decoded = decodePESPayload(mod, pesu.data, mediaId, channel);
                 const ptsMs   = pesu.pts !== null ? (pesu.pts / 90).toFixed(1) : '无';
 
-                if (result.decoded) {
+                if (decoded && decoded.length > 0) {
                     decodedFrames++;
-                    totalOutBytes += result.decoded.length;
+                    totalOutBytes += decoded.length;
                     console.log('         帧 #' + (fi2 + 1) + ': 输入=' + pesu.data.length +
-                        'B, 输出=' + result.decoded.length + 'B, PTS=' + ptsMs + 'ms');
+                        'B, 输出=' + decoded.length + 'B, PTS=' + ptsMs + 'ms');
                     console.log('           输出前8字节: ' +
-                        Buffer.from(result.decoded.slice(0, 8)).toString('hex'));
-                } else if (result.outLen === 0) {
-                    console.log('         帧 #' + (fi2 + 1) + ': 输入=' + pesu.data.length +
-                        'B, 解码器积累中 (PTS=' + ptsMs + 'ms)');
+                        decoded.slice(0, 8).toString('hex'));
                 } else {
                     console.log('         帧 #' + (fi2 + 1) + ': 输入=' + pesu.data.length +
-                        'B, outLen=' + result.outLen + ' (PTS=' + ptsMs + 'ms)');
+                        'B, 无输出 (PTS=' + ptsMs + 'ms)');
                 }
             }
 
