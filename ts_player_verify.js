@@ -504,8 +504,8 @@ function buildPesHeader(streamId, pts, dts, payloadLen) {
     const hasPts = pts !== null && pts !== undefined;
     const hasDts = dts !== null && dts !== undefined && dts !== pts;
     const pesHdrDataLen = hasDts ? 10 : (hasPts ? 5 : 0);
-    const totalHdrLen   = 9 + pesHdrDataLen; // 3-byte start + 1-byte stream_id + 2-byte len + 3-byte flags
-    // For video streams (0xE0-0xEF) PES packet_length is conventionally 0 (unbounded)
+    const totalHdrLen   = 9 + pesHdrDataLen; // 3字节起始码 + 1字节stream_id + 2字节长度 + 3字节标志
+    // 视频流（0xE0-0xEF）的 PES packet_length 按惯例置 0（无界长度）
     const isVideo = (streamId >= 0xE0 && streamId <= 0xEF);
     const pesPacketLen = isVideo ? 0 : (3 + pesHdrDataLen + payloadLen);
 
@@ -566,17 +566,17 @@ function repacketizeToTS(pid, streamId, pts, dts, decodedPayload, ccMap) {
 
         const remaining = fullData.length - offset;
         if (remaining >= 184) {
-            // payload-only packet
+            // 纯载荷包（无自适应字段）
             pkt[3] = 0x10 | cc;
             fullData.copy(pkt, 4, offset, offset + 184);
             offset += 184;
         } else {
-            // last chunk needs adaptation stuffing to fill 184 bytes
+            // 最后一个不足 184 字节的块，用自适应字段填充至 184 字节
             const stuffLen = 184 - remaining;
-            pkt[3] = 0x30 | cc;          // adaptation + payload
+            pkt[3] = 0x30 | cc;          // 自适应字段 + 载荷
             pkt[4] = stuffLen - 1;        // adaptation_field_length
-            if (stuffLen > 1) pkt[5] = 0x00; // adaptation flags = 0
-            // bytes [6 .. 4+stuffLen-1] remain 0xFF (stuffing)
+            if (stuffLen > 1) pkt[5] = 0x00; // 自适应字段标志 = 0
+            // 字节 [6 .. 4+stuffLen-1] 保持 0xFF（填充字节）
             fullData.copy(pkt, 4 + stuffLen, offset, offset + remaining);
             offset += remaining;
         }
@@ -796,7 +796,7 @@ function main() {
             ': ' + pes.length + ' 个 PES 单元');
         if (pes.length > 0) {
             const u = pes[0];
-            const ptsMs0 = u.pts !== null ? (u.pts / 90).toFixed(1) : 'N/A';
+            const ptsMs0 = u.pts !== null ? (u.pts / 90).toFixed(1) : '无';
             console.log('           第一帧 PTS=' + ptsMs0 + 'ms, 数据=' + u.data.length + ' 字节');
         }
         videoPES = videoPES.concat(pes);
@@ -879,7 +879,7 @@ function main() {
                 const pesu    = videoPES[fi2];
                 const mediaId = 'cntv-verify-ch' + channel + '##' + (pesu.pts || 0);
                 const result  = decodeWithWASM(mod, pesu.data, mediaId, channel);
-                const ptsMs   = pesu.pts !== null ? (pesu.pts / 90).toFixed(1) : 'N/A';
+                const ptsMs   = pesu.pts !== null ? (pesu.pts / 90).toFixed(1) : '无';
 
                 if (result.decoded) {
                     decodedFrames++;
