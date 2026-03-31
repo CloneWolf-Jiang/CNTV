@@ -489,12 +489,217 @@ function generateMinimalTS() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// § 7b  TS 重打包工具（解码输出用）
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * 构建 PES 包头。
+ * @param {number}      streamId      PES 流 ID（视频 0xE0，音频 0xC0）
+ * @param {number|null} pts           90kHz 时间戳，null 表示不写 PTS
+ * @param {number|null} dts           90kHz 时间戳，null 或等于 pts 时不写 DTS
+ * @param {number}      payloadLen    PES 有效载荷字节数（视频流传 0 = 无界）
+ * @returns {Buffer}
+ */
+function buildPesHeader(streamId, pts, dts, payloadLen) {
+    const hasPts = pts !== null && pts !== undefined;
+    const hasDts = dts !== null && dts !== undefined && dts !== pts;
+    const pesHdrDataLen = hasDts ? 10 : (hasPts ? 5 : 0);
+    const totalHdrLen   = 9 + pesHdrDataLen; // 3-byte start + 1-byte stream_id + 2-byte len + 3-byte flags
+    // For video streams (0xE0-0xEF) PES packet_length is conventionally 0 (unbounded)
+    const isVideo = (streamId >= 0xE0 && streamId <= 0xEF);
+    const pesPacketLen = isVideo ? 0 : (3 + pesHdrDataLen + payloadLen);
+
+    const buf = Buffer.alloc(totalHdrLen, 0);
+    buf[0] = 0x00; buf[1] = 0x00; buf[2] = 0x01;
+    buf[3] = streamId;
+    buf[4] = (pesPacketLen >> 8) & 0xFF;
+    buf[5] = pesPacketLen & 0xFF;
+    buf[6] = 0x80;
+    buf[7] = (hasPts ? 0x80 : 0) | (hasDts ? 0x40 : 0);
+    buf[8] = pesHdrDataLen;
+
+    if (hasPts) {
+        const marker = hasDts ? 0x31 : 0x21;
+        buf[9]  = marker | (Math.floor(pts / 0x10000000) & 0x0E);
+        buf[10] = (pts >> 22) & 0xFF;
+        buf[11] = 0x01 | ((pts >> 14) & 0xFE);
+        buf[12] = (pts >> 7) & 0xFF;
+        buf[13] = 0x01 | ((pts & 0x7F) << 1);
+    }
+    if (hasDts) {
+        buf[14] = 0x11 | (Math.floor(dts / 0x10000000) & 0x0E);
+        buf[15] = (dts >> 22) & 0xFF;
+        buf[16] = 0x01 | ((dts >> 14) & 0xFE);
+        buf[17] = (dts >> 7) & 0xFF;
+        buf[18] = 0x01 | ((dts & 0x7F) << 1);
+    }
+    return buf;
+}
+
+/**
+ * 将已解码的 PES 有效载荷重新打包成 188 字节 TS 包序列。
+ * @param {number}      pid            目标 PID
+ * @param {number}      streamId       PES 流 ID
+ * @param {number|null} pts            90kHz PTS
+ * @param {number|null} dts            90kHz DTS
+ * @param {Uint8Array}  decodedPayload 解码后的裸数据（H.264 Annex B 等）
+ * @param {Object}      ccMap          每 PID 的连续计数器状态（会被修改）
+ * @returns {Buffer[]}  TS 包 Buffer 数组
+ */
+function repacketizeToTS(pid, streamId, pts, dts, decodedPayload, ccMap) {
+    const pesHeader = buildPesHeader(streamId, pts, dts, decodedPayload.length);
+    const fullData  = Buffer.concat([pesHeader, Buffer.from(decodedPayload)]);
+    if (ccMap[pid] === undefined) ccMap[pid] = 0;
+
+    const tsPkts = [];
+    let offset  = 0;
+    let isFirst = true;
+
+    while (offset < fullData.length) {
+        const pkt = Buffer.alloc(188, 0xFF);
+        const cc  = ccMap[pid] & 0x0F;
+        ccMap[pid] = (ccMap[pid] + 1) & 0x0F;
+
+        pkt[0] = 0x47;
+        pkt[1] = (isFirst ? 0x40 : 0x00) | ((pid >> 8) & 0x1F);
+        pkt[2] = pid & 0xFF;
+
+        const remaining = fullData.length - offset;
+        if (remaining >= 184) {
+            // payload-only packet
+            pkt[3] = 0x10 | cc;
+            fullData.copy(pkt, 4, offset, offset + 184);
+            offset += 184;
+        } else {
+            // last chunk needs adaptation stuffing to fill 184 bytes
+            const stuffLen = 184 - remaining;
+            pkt[3] = 0x30 | cc;          // adaptation + payload
+            pkt[4] = stuffLen - 1;        // adaptation_field_length
+            if (stuffLen > 1) pkt[5] = 0x00; // adaptation flags = 0
+            // bytes [6 .. 4+stuffLen-1] remain 0xFF (stuffing)
+            fullData.copy(pkt, 4 + stuffLen, offset, offset + remaining);
+            offset += remaining;
+        }
+        tsPkts.push(pkt);
+        isFirst = false;
+    }
+    return tsPkts;
+}
+
+/**
+ * 处理整个输入 TS 文件，对所有视频 PES 单元调用 WASM 解码，
+ * 音频和 PSI (PAT/PMT) 包原样保留，返回完整输出 TS 数据。
+ *
+ * @param {Buffer}   rawData         完整输入 TS 字节流
+ * @param {number[]} videoPids       视频 PID 列表（来自 PMT）
+ * @param {Object}   mod             已初始化的 CNTVModule 实例
+ * @param {number}   channel         解码通道（7=H.264, 4=HEVC, 0=Generic）
+ * @returns {{outputBuf:Buffer, stats:{totalPES,decoded,failed,inBytes,outBytes}}}
+ */
+function buildDecodedTSFile(rawData, videoPids, mod, channel) {
+    const allPackets = parseTsPackets(rawData);
+
+    // ── Pass 1: 收集视频 PES 边界（按 startIdx/endIdx 标记） ──────────────
+    const accumState = {}; // pid -> {startIdx, data[], pts, dts}
+    const videoRanges = [];
+
+    for (let i = 0; i < allPackets.length; i++) {
+        const pkt = allPackets[i];
+        if (videoPids.indexOf(pkt.pid) < 0 || !pkt.payload) continue;
+        const pay = pkt.payload;
+
+        if (pkt.pusi) {
+            // Flush previous PES for this PID
+            if (accumState[pkt.pid] && accumState[pkt.pid].data.length > 0) {
+                const st = accumState[pkt.pid];
+                videoRanges.push({
+                    startIdx: st.startIdx, endIdx: i - 1,
+                    pid: pkt.pid, pts: st.pts, dts: st.dts,
+                    pesData: new Uint8Array(st.data),
+                });
+            }
+            // Start new PES accumulation
+            let pts = null, dts = null, dataStart = 0;
+            if (pay.length >= 9 && pay[0] === 0 && pay[1] === 0 && pay[2] === 1) {
+                const f2 = pay[7], hLen = pay[8];
+                if (f2 & 0x80) pts = parsePTS(pay, 9);
+                if (f2 & 0x40) dts = parsePTS(pay, 14);
+                dataStart = 9 + hLen;
+            }
+            const data = [];
+            for (let b = dataStart; b < pay.length; b++) data.push(pay[b]);
+            accumState[pkt.pid] = { startIdx: i, data, pts, dts };
+        } else if (accumState[pkt.pid]) {
+            for (let b = 0; b < pay.length; b++) accumState[pkt.pid].data.push(pay[b]);
+        }
+    }
+    // Flush remaining open PES units (last PES in file)
+    for (const pidKey of Object.keys(accumState)) {
+        const st = accumState[pidKey];
+        if (st && st.data.length > 0) {
+            videoRanges.push({
+                startIdx: st.startIdx, endIdx: allPackets.length - 1,
+                pid: parseInt(pidKey), pts: st.pts, dts: st.dts,
+                pesData: new Uint8Array(st.data),
+            });
+        }
+    }
+    videoRanges.sort(function(a, b) { return a.startIdx - b.startIdx; });
+
+    // ── Pass 2: 逐包输出，对视频范围替换解码数据 ────────────────────────────
+    const outputChunks = [];
+    const ccMap = {};
+    let rangeIdx = 0;
+    let skipUntil = -1;
+
+    const stats = { totalPES: videoRanges.length, decoded: 0, failed: 0, inBytes: 0, outBytes: 0 };
+
+    for (let i = 0; i < allPackets.length; i++) {
+        if (i <= skipUntil) continue;
+
+        if (rangeIdx < videoRanges.length && videoRanges[rangeIdx].startIdx === i) {
+            const range = videoRanges[rangeIdx++];
+            skipUntil = range.endIdx;
+            stats.inBytes += range.pesData.length;
+
+            const mediaId = 'cntv-dec-' + range.pid + '##' + (range.pts || 0);
+            const result  = decodeWithWASM(mod, range.pesData, mediaId, channel);
+
+            if (result.decoded && result.decoded.length > 0) {
+                stats.decoded++;
+                stats.outBytes += result.decoded.length;
+                const newPkts = repacketizeToTS(
+                    range.pid, 0xE0, range.pts, range.dts, result.decoded, ccMap);
+                for (let pi = 0; pi < newPkts.length; pi++) outputChunks.push(newPkts[pi]);
+            } else {
+                // Decode produced no output — fall back to copying original packets
+                stats.failed++;
+                for (let k = range.startIdx; k <= range.endIdx; k++) {
+                    outputChunks.push(rawData.slice(allPackets[k].offset, allPackets[k].offset + 188));
+                }
+            }
+        } else {
+            // Non-video packet: copy raw bytes unchanged
+            outputChunks.push(rawData.slice(allPackets[i].offset, allPackets[i].offset + 188));
+        }
+    }
+
+    return { outputBuf: Buffer.concat(outputChunks), stats };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // § 8  完整流程演示
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * 验证器主函数（使用回调而非 async/await，避免 Emscripten 事件循环与
  * Node.js 微任务队列之间的调度冲突）。
+ *
+ * 用法：
+ *   node ts_player_verify.js <input.ts> [output.ts]
+ *
+ *   input.ts  — 输入 TS 文件（加密/编码视频，音频正常）
+ *   output.ts — 解码后的输出 TS 文件（可选；若省略则只打印分析报告）
  */
 function main() {
     const SEP = '─'.repeat(60);
@@ -504,14 +709,18 @@ function main() {
 
     // ── 读取或生成 TS 数据 ────────────────────────────────────────────────
     let tsData;
-    const tsFile = process.argv[2];
+    const tsFile  = process.argv[2];
+    const outFile = process.argv[3] || null;
     if (tsFile) {
         tsData = fs.readFileSync(tsFile);
         console.log('\n[载入] 读取 TS 文件: ' + tsFile + ' (' + tsData.length + ' 字节)');
+        if (outFile) {
+            console.log('       输出文件   : ' + outFile);
+        }
     } else {
         tsData = generateMinimalTS();
         console.log('\n[载入] 使用生成的最小测试 TS 数据 (' + tsData.length + ' 字节)');
-        console.log('       提示: node ts_player_verify.js <file.ts>  可传入真实 TS 文件');
+        console.log('       提示: node ts_player_verify.js <input.ts> [output.ts]');
     }
 
     // ── Step 1: 解析 TS 包 ────────────────────────────────────────────────
@@ -633,51 +842,78 @@ function main() {
             console.log('         ' + ok + ' ' + fns[fi]);
         }
 
-        // ── Step 6: 解码测试 ──────────────────────────────────────────────
-        console.log('\n[解码] 开始解码（' + codecName + ')...');
+        // ── Step 6: 解码 ──────────────────────────────────────────────────────
+        if (outFile) {
+            // ── 输出模式：解码所有视频 PES，写入输出 TS 文件 ────────────────
+            console.log('\n[解码] 处理全部视频 PES 单元（输出模式）...');
+            const { outputBuf, stats } = buildDecodedTSFile(tsData, videoStreams.map(function(s) { return s.pid; }), mod, channel);
+            fs.writeFileSync(outFile, outputBuf);
+            console.log('       写入完成: ' + outFile + ' (' + outputBuf.length + ' 字节)');
 
-        let decodedFrames = 0;
-        let totalOutBytes = 0;
-        const maxFrames = Math.min(videoPES.length, 5);
+            console.log('\n' + SEP);
+            console.log('解码结果摘要');
+            console.log(SEP);
+            console.log('  输入文件     : ' + tsFile);
+            console.log('  输出文件     : ' + outFile);
+            console.log('  TS 包总数    : ' + packets.length);
+            console.log('  视频 ES 流   : ' + videoStreams.length + ' (编解码: ' + codecName + ')');
+            console.log('  音频 ES 流   : ' + audioStreams.length + ' (原样保留)');
+            console.log('  视频 PES 总数: ' + stats.totalPES);
+            console.log('  解码成功     : ' + stats.decoded);
+            console.log('  解码失败/透传: ' + stats.failed);
+            console.log('  输入视频字节 : ' + stats.inBytes);
+            console.log('  输出视频字节 : ' + stats.outBytes);
+            console.log('  输出文件大小 : ' + outputBuf.length + ' 字节');
+            console.log(SEP);
+            console.log('✓ 解码完成：' + tsFile + ' → ' + outFile);
+            console.log(SEP + '\n');
+        } else {
+            // ── 验证模式：解码前 5 帧并打印报告 ──────────────────────────────
+            console.log('\n[解码] 开始解码（' + codecName + ')...');
 
-        for (let fi2 = 0; fi2 < maxFrames; fi2++) {
-            const pesu    = videoPES[fi2];
-            const mediaId = 'cntv-verify-ch' + channel + '##' + (pesu.pts || 0);
-            const result  = decodeWithWASM(mod, pesu.data, mediaId, channel);
-            const ptsMs   = pesu.pts !== null ? (pesu.pts / 90).toFixed(1) : 'N/A';
+            let decodedFrames = 0;
+            let totalOutBytes = 0;
+            const maxFrames = Math.min(videoPES.length, 5);
 
-            if (result.decoded) {
-                decodedFrames++;
-                totalOutBytes += result.decoded.length;
-                console.log('         帧 #' + (fi2 + 1) + ': 输入=' + pesu.data.length +
-                    'B, 输出=' + result.decoded.length + 'B, PTS=' + ptsMs + 'ms');
-                console.log('           输出前8字节: ' +
-                    Buffer.from(result.decoded.slice(0, 8)).toString('hex'));
-            } else if (result.outLen === 0) {
-                console.log('         帧 #' + (fi2 + 1) + ': 输入=' + pesu.data.length +
-                    'B, 解码器积累中 (PTS=' + ptsMs + 'ms)');
-            } else {
-                console.log('         帧 #' + (fi2 + 1) + ': 输入=' + pesu.data.length +
-                    'B, outLen=' + result.outLen + ' (PTS=' + ptsMs + 'ms)');
+            for (let fi2 = 0; fi2 < maxFrames; fi2++) {
+                const pesu    = videoPES[fi2];
+                const mediaId = 'cntv-verify-ch' + channel + '##' + (pesu.pts || 0);
+                const result  = decodeWithWASM(mod, pesu.data, mediaId, channel);
+                const ptsMs   = pesu.pts !== null ? (pesu.pts / 90).toFixed(1) : 'N/A';
+
+                if (result.decoded) {
+                    decodedFrames++;
+                    totalOutBytes += result.decoded.length;
+                    console.log('         帧 #' + (fi2 + 1) + ': 输入=' + pesu.data.length +
+                        'B, 输出=' + result.decoded.length + 'B, PTS=' + ptsMs + 'ms');
+                    console.log('           输出前8字节: ' +
+                        Buffer.from(result.decoded.slice(0, 8)).toString('hex'));
+                } else if (result.outLen === 0) {
+                    console.log('         帧 #' + (fi2 + 1) + ': 输入=' + pesu.data.length +
+                        'B, 解码器积累中 (PTS=' + ptsMs + 'ms)');
+                } else {
+                    console.log('         帧 #' + (fi2 + 1) + ': 输入=' + pesu.data.length +
+                        'B, outLen=' + result.outLen + ' (PTS=' + ptsMs + 'ms)');
+                }
             }
-        }
 
-        // ── 结果汇总 ──────────────────────────────────────────────────────
-        console.log('\n' + SEP);
-        console.log('验证结果摘要');
-        console.log(SEP);
-        console.log('  TS 包总数    : ' + packets.length);
-        console.log('  找到节目数   : ' + Object.keys(pmtPids).length);
-        console.log('  视频 ES 流   : ' + videoStreams.length);
-        console.log('  音频 ES 流   : ' + audioStreams.length);
-        console.log('  PES 视频单元 : ' + videoPES.length);
-        console.log('  WASM 模块    : CNTVModule v2.0.9 (' + path.basename(workerPath) + ')');
-        console.log('  独立 WASM    : cntv_decoder.wasm (88388 字节, 从 live.worker.js 提取)');
-        console.log('  解码输出帧   : ' + decodedFrames);
-        console.log('  输出字节合计 : ' + totalOutBytes);
-        console.log(SEP);
-        console.log('✓ 完整逻辑链验证通过：载入 → TS 解析 → PAT/PMT → PES 拼装 → WASM 解码');
-        console.log(SEP + '\n');
+            // ── 结果汇总 ──────────────────────────────────────────────────────
+            console.log('\n' + SEP);
+            console.log('验证结果摘要');
+            console.log(SEP);
+            console.log('  TS 包总数    : ' + packets.length);
+            console.log('  找到节目数   : ' + Object.keys(pmtPids).length);
+            console.log('  视频 ES 流   : ' + videoStreams.length);
+            console.log('  音频 ES 流   : ' + audioStreams.length);
+            console.log('  PES 视频单元 : ' + videoPES.length);
+            console.log('  WASM 模块    : CNTVModule v2.0.9 (' + path.basename(workerPath) + ')');
+            console.log('  独立 WASM    : cntv_decoder.wasm (88388 字节, 从 live.worker.js 提取)');
+            console.log('  解码输出帧   : ' + decodedFrames);
+            console.log('  输出字节合计 : ' + totalOutBytes);
+            console.log(SEP);
+            console.log('✓ 完整逻辑链验证通过：载入 → TS 解析 → PAT/PMT → PES 拼装 → WASM 解码');
+            console.log(SEP + '\n');
+        }
 
         process.exit(0);
     });
